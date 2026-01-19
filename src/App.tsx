@@ -862,7 +862,16 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
               <div className="ai-reply-content">{generateAIReply(message)}</div>
               <div className="ai-reply-actions">
                 <button className="ai-reply-btn" onClick={handleCopyReply}><Copy size={10} /><span>{copied ? 'Copied!' : 'Copy'}</span></button>
-                <button className="ai-reply-btn primary"><Send size={10} /><span>Send</span></button>
+                <a
+                  href={message.type === 'gmail' || message.source === 'gmail'
+                    ? `https://mail.google.com/mail/u/0/#inbox/${message.id}`
+                    : `https://outlook.live.com/mail/0/inbox/id/${message.id}`}
+                  className="ai-reply-btn primary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink size={10} /><span>Reply in {message.type === 'gmail' || message.source === 'gmail' ? 'Gmail' : 'Outlook'}</span>
+                </a>
               </div>
             </div>
           )}
