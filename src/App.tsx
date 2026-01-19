@@ -192,12 +192,36 @@ interface N8nWebhookResponse {
   }
 }
 
+// Helper to strip HTML tags from text
+const stripHtml = (html: string): string => {
+  if (!html) return ''
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+// Helper to extract meeting link from description if not in meetLink field
+const extractMeetingLink = (event: { description: string; location: string; meetLink: string }): string => {
+  if (event.meetLink) return event.meetLink
+  if (event.location && (event.location.includes('zoom.us') || event.location.includes('meet.google'))) {
+    return event.location
+  }
+  // Try to extract from description
+  const urlMatch = event.description?.match(/https:\/\/(us\d+web\.)?zoom\.us\/j\/[^\s<"]+|https:\/\/meet\.google\.com\/[^\s<"]+/)
+  return urlMatch ? urlMatch[0] : ''
+}
+
 // Transform n8n webhook response to app data structure
 const transformWebhookData = (data: N8nWebhookResponse) => {
   const today = new Date()
+  const todayStr = format(today, 'yyyy-MM-dd')
 
-  // Transform calendar events
-  const calendarEvents: AgendaItem[] = data.calendar_events.map(event => {
+  // Transform calendar events - FILTER TO TODAY ONLY
+  const allCalendarEvents: AgendaItem[] = data.calendar_events
+    .filter(event => {
+      // Check if event starts today
+      const eventDate = event.start.split('T')[0]
+      return eventDate === todayStr
+    })
+    .map(event => {
     const startDate = new Date(event.start)
     const endDate = new Date(event.end)
     const durationMs = endDate.getTime() - startDate.getTime()
@@ -206,18 +230,29 @@ const transformWebhookData = (data: N8nWebhookResponse) => {
       ? `${Math.floor(durationMins / 60)}h${durationMins % 60 > 0 ? ` ${durationMins % 60}m` : ''}`
       : `${durationMins}m`
 
+    // Clean up description - strip HTML
+    const cleanDescription = stripHtml(event.description)
+    const meetingLink = extractMeetingLink(event)
+
     return {
       id: event.id,
       type: 'calendar' as const,
       title: event.title,
-      subtitle: event.location || event.description || '',
-      description: event.description,
+      subtitle: event.location || (cleanDescription.length > 60 ? cleanDescription.substring(0, 60) + '...' : cleanDescription) || '',
+      description: cleanDescription,
       time: format(startDate, 'HH:mm'),
       endTime: format(endDate, 'HH:mm'),
       duration: durationStr,
-      meetingLink: event.meetLink || '',
+      meetingLink: meetingLink,
       source: 'google_calendar'
     }
+  })
+
+  // Sort by start time
+  const calendarEvents = allCalendarEvents.sort((a, b) => {
+    const timeA = a.time || '00:00'
+    const timeB = b.time || '00:00'
+    return timeA.localeCompare(timeB)
   })
 
   // Transform Asana tasks
@@ -238,17 +273,23 @@ const transformWebhookData = (data: N8nWebhookResponse) => {
     }
   })
 
-  // Transform Gmail emails
-  const gmailMessages: AgendaItem[] = data.emails.gmail.map(email => ({
-    id: email.id,
-    type: 'email' as const,
-    title: email.subject,
-    subtitle: `From ${email.from}`,
-    description: email.snippet,
-    priority: email.isUnread ? 'today' : 'normal',
-    isPriority: email.isUnread,
-    source: 'gmail'
-  }))
+  // Transform Gmail emails - use snippet as title if subject is missing
+  const gmailMessages: AgendaItem[] = data.emails.gmail.map(email => {
+    const hasSubject = email.subject && email.subject !== 'No Subject'
+    const hasFrom = email.from && email.from !== 'Unknown'
+    const snippetPreview = email.snippet ? email.snippet.substring(0, 80) + (email.snippet.length > 80 ? '...' : '') : ''
+
+    return {
+      id: email.id,
+      type: 'email' as const,
+      title: hasSubject ? email.subject : snippetPreview || 'No Subject',
+      subtitle: hasFrom ? `From ${email.from}` : (snippetPreview && hasSubject ? snippetPreview : 'From Unknown'),
+      description: email.snippet,
+      priority: email.isUnread ? 'today' : 'normal',
+      isPriority: email.isUnread,
+      source: 'gmail'
+    }
+  })
 
   // Transform Outlook emails
   const outlookMessages: AgendaItem[] = data.emails.outlook.map(email => ({
