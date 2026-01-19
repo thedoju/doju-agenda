@@ -224,6 +224,27 @@ body {
   margin: 0 0 16px 0;
 }
 
+/* Read Aloud - Word Highlighting */
+.summary .spoken-text {
+  color: var(--text-primary);
+  transition: color 0.1s ease;
+}
+
+.summary .unspoken-text {
+  color: var(--text-secondary);
+}
+
+.summary-btn.active {
+  background: var(--priority);
+  border-color: var(--priority);
+  color: var(--bg-primary);
+}
+
+.summary-btn.active:hover {
+  background: var(--priority);
+  opacity: 0.9;
+}
+
 .summary-footer {
   display: flex;
   align-items: center;

@@ -1099,6 +1099,10 @@ function App() {
   const [showUndoToast, setShowUndoToast] = useState(false)
   const [taskFilter, setTaskFilter] = useState<'all' | 'complete' | 'deleted' | 'priority'>('all')
 
+  // Read Aloud state for word-by-word highlighting
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [spokenCharIndex, setSpokenCharIndex] = useState(0)
+
   // Real data from n8n webhook
   const [agendaData, setAgendaData] = useState<{
     tasks: AgendaItem[]
@@ -1279,9 +1283,41 @@ function App() {
   const aiSummary = generateAISummary(activeTasks, todayMeetings, activeMessages, completedCount, currentTime.getHours(), userName)
 
   const handleReadAloud = () => {
+    // If already speaking, stop
+    if (isSpeaking) {
+      speechSynthesis.cancel()
+      setIsSpeaking(false)
+      setSpokenCharIndex(0)
+      return
+    }
+
     const utterance = new SpeechSynthesisUtterance(aiSummary)
     utterance.rate = 0.9
     utterance.pitch = 1
+
+    // Track word boundaries as speech progresses
+    utterance.onboundary = (event) => {
+      if (event.name === 'word') {
+        setSpokenCharIndex(event.charIndex + (event.charLength || 1))
+      }
+    }
+
+    utterance.onstart = () => {
+      setIsSpeaking(true)
+      setSpokenCharIndex(0)
+    }
+
+    utterance.onend = () => {
+      setIsSpeaking(false)
+      // Keep the text white (fully highlighted) after finishing
+      setSpokenCharIndex(aiSummary.length)
+    }
+
+    utterance.onerror = () => {
+      setIsSpeaking(false)
+      setSpokenCharIndex(0)
+    }
+
     speechSynthesis.speak(utterance)
   }
 
@@ -1345,13 +1381,22 @@ function App() {
 
         <div className="summary-card">
           <h1 className="greeting">{greeting}</h1>
-          <p className="summary">{aiSummary}</p>
+          <p className="summary">
+            {isSpeaking || spokenCharIndex > 0 ? (
+              <>
+                <span className="spoken-text">{aiSummary.slice(0, spokenCharIndex)}</span>
+                <span className="unspoken-text">{aiSummary.slice(spokenCharIndex)}</span>
+              </>
+            ) : (
+              aiSummary
+            )}
+          </p>
           <div className="summary-footer">
             <span className="last-updated">Last updated: {format(lastUpdated, 'h:mm a').toLowerCase()}</span>
             <div className="summary-actions">
-              <button className="summary-btn" onClick={handleReadAloud}>
-                <Volume2 size={14} />
-                <span>Read Aloud</span>
+              <button className={`summary-btn ${isSpeaking ? 'active' : ''}`} onClick={handleReadAloud}>
+                {isSpeaking ? <Pause size={14} /> : <Volume2 size={14} />}
+                <span>{isSpeaking ? 'Stop' : 'Read Aloud'}</span>
               </button>
               <button className="summary-btn" onClick={handleRefresh}>
                 <RefreshCw size={14} />
