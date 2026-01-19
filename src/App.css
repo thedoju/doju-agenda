@@ -1734,6 +1734,171 @@ body.light-mode .action-btn-small.complete {
   color: var(--text-primary);
 }
 
+/* Make meetings look clickable */
+.calendar-meeting {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.calendar-meeting:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Meeting Modal */
+.meeting-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.meeting-modal {
+  background: var(--bg-card);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  padding: 20px;
+  border-left: 4px solid var(--text-secondary);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.meeting-modal.mentoring {
+  border-left-color: var(--priority);
+}
+
+.meeting-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.meeting-modal-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.meeting-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  margin: -4px -4px 0 0;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.meeting-modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.meeting-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.meeting-modal.mentoring .meeting-modal-title {
+  color: var(--priority);
+}
+
+.meeting-modal-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.meeting-join-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--priority);
+  color: var(--bg-primary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  margin: 12px 0 16px 0;
+  transition: all 0.15s ease;
+}
+
+.meeting-join-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(252, 212, 67, 0.3);
+}
+
+.meeting-notes-section {
+  margin-top: 16px;
+}
+
+.meeting-notes-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.meeting-notes-input {
+  width: 100%;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  box-sizing: border-box;
+}
+
+.meeting-notes-input::placeholder {
+  color: var(--text-muted);
+}
+
+.meeting-notes-input:focus {
+  outline: none;
+  border-color: var(--text-secondary);
+}
+
+.meeting-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.meeting-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.meeting-action-btn:hover {
+  background: var(--border);
+}
+
 /* Empty state */
 .calendar-empty {
   position: absolute;
@@ -1770,6 +1935,12 @@ body.light-mode .action-btn-small.complete {
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.message-card-main:hover {
+  background: var(--bg-hover);
 }
 
 .message-card-icon {

@@ -540,49 +540,130 @@ const DojuLogo = ({ dark }: { dark: boolean }) => (
 )
 
 // AI Reply Generator - analyzes full email content for context-aware replies
+// Helper to pick random item from array
+const pickRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
+
 const generateAIReply = (item: AgendaItem): string => {
   const content = `${item.title} ${item.description || ''}`.toLowerCase()
   const senderMatch = item.subtitle?.match(/From (.+)/i)
   const senderName = senderMatch ? senderMatch[1].split('@')[0].split(' ')[0] : ''
-  const greeting = senderName && senderName !== 'Unknown' ? `Hi ${senderName},` : 'Hi,'
+
+  // Varied greetings
+  const greetings = senderName && senderName !== 'Unknown'
+    ? [`Hi ${senderName}!`, `Hey ${senderName},`, `Hello ${senderName},`, `Hi ${senderName},`, `Good to hear from you, ${senderName}!`]
+    : ['Hi there!', 'Hello!', 'Hey,', 'Hi,', 'Good to hear from you!']
+  const greeting = pickRandom(greetings)
+
+  // Varied sign-offs
+  const signOffs = [
+    'Best,\nOliver',
+    'Cheers,\nOliver',
+    'Thanks,\nOliver',
+    'Speak soon,\nOliver',
+    'All the best,\nOliver',
+    'Looking forward to it,\nOliver',
+    'Warmly,\nOliver'
+  ]
+  const signOff = pickRandom(signOffs)
+
+  // Time-based context
+  const hour = new Date().getHours()
+  const timeContext = hour < 12 ? 'this morning' : hour < 17 ? 'this afternoon' : 'this evening'
 
   // Invoice/Payment related
   if (content.includes('invoice') || content.includes('payment') || content.includes('receipt')) {
     if (content.includes('overdue') || content.includes('reminder')) {
-      return `${greeting}\n\nApologies for the delay. I'll process this payment today and send confirmation once complete.\n\nBest,\nOliver`
+      const responses = [
+        `${greeting}\n\nSo sorry for the delay on this one! I've been juggling a few things but this is definitely top priority now. I'll get this sorted ${timeContext} and send you confirmation as soon as it's done.\n\nReally appreciate your patience here.\n\n${signOff}`,
+        `${greeting}\n\nApologies for the hold-up – completely my oversight! I'm processing this right now and you'll have confirmation before end of day. Thanks for the nudge, and sorry again for any inconvenience.\n\n${signOff}`,
+        `${greeting}\n\nThanks for the reminder! This slipped through the cracks on my end. I'm sorting it now and will send you the confirmation shortly. Won't happen again!\n\n${signOff}`
+      ]
+      return pickRandom(responses)
     }
-    return `${greeting}\n\nThanks for sending this through. I've reviewed the invoice and will process payment within the next 48 hours.\n\nBest,\nOliver`
+    const responses = [
+      `${greeting}\n\nGot it! Thanks for sending this over. I've had a quick look and everything seems in order. I'll get the payment processed within the next 24-48 hours and drop you a note once it's done.\n\nLet me know if you need anything else in the meantime!\n\n${signOff}`,
+      `${greeting}\n\nPerfect, thanks for this! I'll review the details ${timeContext} and get everything squared away. You should see the payment come through within a couple of days.\n\nAppreciate you sending this promptly.\n\n${signOff}`,
+      `${greeting}\n\nThanks so much for sending this through! I've saved it to my accounting folder and will process it this week. Always appreciate how organized you are with these things!\n\n${signOff}`
+    ]
+    return pickRandom(responses)
   }
 
   // Meeting/Schedule related
   if (content.includes('meeting') || content.includes('schedule') || content.includes('call') || content.includes('available')) {
     if (content.includes('reschedule') || content.includes('cancel')) {
-      return `${greeting}\n\nNo problem at all. Let me know what times work better for you and I'll adjust my calendar.\n\nBest,\nOliver`
+      const responses = [
+        `${greeting}\n\nAbsolutely no worries at all! Life happens. I'm pretty flexible this week and next, so just let me know what works better for you. Happy to shift things around to make it work.\n\nTake your time finding a slot that suits.\n\n${signOff}`,
+        `${greeting}\n\nNo problem whatsoever! I totally understand schedules can be unpredictable. Send me a few alternative times whenever you get a chance and we'll lock something in that works for both of us.\n\n${signOff}`,
+        `${greeting}\n\nCompletely understand – these things happen! My calendar is fairly open, so just throw some times my way when you know what works. Looking forward to connecting when it suits.\n\n${signOff}`
+      ]
+      return pickRandom(responses)
     }
-    return `${greeting}\n\nThanks for reaching out. I'm available this week - would Tuesday or Thursday afternoon work for you?\n\nBest,\nOliver`
+    const responses = [
+      `${greeting}\n\nLovely to hear from you! I'd be more than happy to jump on a call. Looking at my calendar, I've got some availability this week – how does Tuesday or Thursday afternoon sound? I'm generally free between 2-5pm but can be flexible if those don't work.\n\nJust let me know what suits and I'll send over a calendar invite.\n\n${signOff}`,
+      `${greeting}\n\nGreat idea! I'm keen to connect. This week is looking good for me – I could do Wednesday morning or Friday afternoon? Let me know your preference and I'll block out the time.\n\nAlso happy to do a quick 15-min call or a longer chat, whatever works best for what we need to cover!\n\n${signOff}`,
+      `${greeting}\n\nSounds great! Always good to have a proper chat. I've got a few slots free this week – what about Thursday around 3pm, or Friday morning? Either works well on my end.\n\nShoot me your preference and we'll get it booked in!\n\n${signOff}`
+    ]
+    return pickRandom(responses)
   }
 
   // Project/Work inquiry
   if (content.includes('project') || content.includes('quote') || content.includes('proposal') || content.includes('work')) {
-    return `${greeting}\n\nThank you for reaching out! I'd love to learn more about your project. Could you share a brief overview of what you're looking for? I'm available for a discovery call this week if that would help.\n\nBest,\nOliver`
+    const responses = [
+      `${greeting}\n\nThis sounds really interesting! I'd love to hear more about what you have in mind. Could you share a bit more detail about the project scope and timeline you're working towards? \n\nI'm always excited to take on new challenges, and a quick discovery call might be useful to make sure I fully understand your vision. I've got some availability this week if that works for you?\n\n${signOff}`,
+      `${greeting}\n\nThanks so much for thinking of me! I'm definitely intrigued and would love to learn more. What's the best way to get the full picture – would a quick call work, or would you prefer to share some details over email first?\n\nEither way, I'm excited to explore how I can help bring your ideas to life.\n\n${signOff}`,
+      `${greeting}\n\nOh this sounds right up my alley! I'd be really keen to dig into the details and see how I can help. \n\nDo you have a brief or some initial thoughts you could share? And if you're free for a quick chat this week, I find that's often the best way to get aligned on the vision and make sure we're on the same page.\n\n${signOff}`
+    ]
+    return pickRandom(responses)
   }
 
   // Question/Help request
   if (content.includes('?') || content.includes('help') || content.includes('question') || content.includes('how')) {
-    return `${greeting}\n\nThanks for your message. I'll look into this and get back to you with a detailed response shortly.\n\nBest,\nOliver`
+    const responses = [
+      `${greeting}\n\nGreat question! Let me dig into this ${timeContext} and I'll get back to you with a proper answer. I want to make sure I give you accurate info rather than a rushed response.\n\nExpect to hear from me within the next day or so – and feel free to nudge me if I go quiet!\n\n${signOff}`,
+      `${greeting}\n\nThanks for reaching out! I've made a note to look into this properly and will send you a detailed response once I've gathered all the info. Should have something for you by tomorrow at the latest.\n\nIn the meantime, let me know if anything else comes up!\n\n${signOff}`,
+      `${greeting}\n\nAppreciate you asking! This is something I want to give a thoughtful answer to rather than just off the top of my head. Give me a bit of time to put together something comprehensive and I'll get back to you.\n\nHang tight!\n\n${signOff}`
+    ]
+    return pickRandom(responses)
   }
 
   // Feedback/Review
   if (content.includes('feedback') || content.includes('review') || content.includes('thoughts')) {
-    return `${greeting}\n\nThanks for sharing this. I'll review everything carefully and send my feedback by end of day tomorrow.\n\nBest,\nOliver`
+    const responses = [
+      `${greeting}\n\nThanks for sharing this with me! I'm looking forward to going through it properly. I'll set aside some time ${timeContext} to give it the attention it deserves and send over my thoughts.\n\nExpect detailed feedback by end of day tomorrow – I'll make sure it's constructive and actionable!\n\n${signOff}`,
+      `${greeting}\n\nExcellent, thanks for sending this over! I'll carve out some focused time to review everything thoroughly. You can expect my feedback within the next 24-48 hours – I want to make sure I give you genuinely useful input.\n\nReally appreciate you involving me in this!\n\n${signOff}`,
+      `${greeting}\n\nLove that you've sent this my way! I'll give it a proper read-through and put together some detailed thoughts. Always happy to be a sounding board.\n\nI'll aim to have something back to you by tomorrow – looking forward to diving in!\n\n${signOff}`
+    ]
+    return pickRandom(responses)
   }
 
-  // Default - personalized if we have sender name
-  if (senderName && senderName !== 'Unknown') {
-    return `${greeting}\n\nThanks for your message. I'll review this and get back to you shortly.\n\nBest,\nOliver`
+  // Follow-up / Checking in
+  if (content.includes('following up') || content.includes('checking in') || content.includes('update') || content.includes('status')) {
+    const responses = [
+      `${greeting}\n\nThanks for checking in! I've actually been meaning to reach out with an update. Things are progressing well – let me pull together a proper status update ${timeContext} and I'll send it your way.\n\nAppreciate you keeping me on track!\n\n${signOff}`,
+      `${greeting}\n\nPerfect timing! I was just about to loop back on this. Give me a moment to gather my thoughts and I'll send you a comprehensive update. Should have something to you within the hour.\n\n${signOff}`,
+      `${greeting}\n\nGood shout! Thanks for the nudge. I'll put together an update on where everything stands and get it over to you today. Appreciate your patience with me!\n\n${signOff}`
+    ]
+    return pickRandom(responses)
   }
 
-  return `Hi,\n\nThanks for your message. I'll get back to you shortly.\n\nBest,\nOliver`
+  // Collaboration / Partnership
+  if (content.includes('collaborate') || content.includes('partner') || content.includes('together') || content.includes('opportunity')) {
+    const responses = [
+      `${greeting}\n\nThis sounds really exciting! I'm always open to interesting collaboration opportunities, and this one definitely has potential. Would love to explore this further – perhaps we could jump on a quick call to discuss?\n\nI'm around this week if that works for you!\n\n${signOff}`,
+      `${greeting}\n\nThanks so much for reaching out! I love the sound of this and would be keen to learn more. What did you have in mind in terms of how we'd work together?\n\nHappy to chat through the details whenever suits.\n\n${signOff}`,
+      `${greeting}\n\nOoh, this is intriguing! I'm definitely interested in hearing more about what you're thinking. Let's find a time to connect and explore the possibilities – I've got a few ideas already brewing!\n\n${signOff}`
+    ]
+    return pickRandom(responses)
+  }
+
+  // Default - personalized and varied
+  const defaultResponses = [
+    `${greeting}\n\nThanks so much for getting in touch! I've read through your message and will put together a proper response ${timeContext}. Want to make sure I give this the attention it deserves.\n\nYou'll hear from me soon!\n\n${signOff}`,
+    `${greeting}\n\nReally appreciate you reaching out! I'll take some time to review this properly and get back to you with my thoughts. Expect a response within the next day or so.\n\nThanks for your patience!\n\n${signOff}`,
+    `${greeting}\n\nLovely to hear from you! I'll give this a thorough read and follow up with you shortly. Always happy to help where I can.\n\nChat soon!\n\n${signOff}`,
+    `${greeting}\n\nThanks for your message! I'm on it – will review everything and circle back with you ${timeContext} or first thing tomorrow at the latest.\n\n${signOff}`
+  ]
+  return pickRandom(defaultResponses)
 }
 
 // Status Tag Component
@@ -621,6 +702,92 @@ const StatusTag = ({ status, onChange }: { status: string; onChange: (newStatus:
 }
 
 // Day Timeline Component - Visual 8am-8pm calendar
+// Meeting Card component for expandable meeting details
+const MeetingCard = ({ meeting, style, isNow, isPast, isMentoring }: {
+  meeting: AgendaItem;
+  style: { top: number; height: number };
+  isNow: boolean;
+  isPast: boolean;
+  isMentoring: boolean;
+}) => {
+  const [expanded, setExpanded] = useState(false)
+  const [notes, setNotes] = useState(meeting.description || '')
+  const displayTitle = meeting.title || meeting.subtitle || 'Untitled Meeting'
+
+  return (
+    <>
+      <div
+        className={`calendar-meeting ${isNow ? 'now' : ''} ${isPast ? 'past' : ''} ${isMentoring ? 'mentoring' : ''}`}
+        style={{ top: style.top, height: style.height }}
+        onClick={() => setExpanded(true)}
+      >
+        <div className="calendar-meeting-time">{meeting.time} · {meeting.duration}</div>
+        <div className="calendar-meeting-title">{displayTitle}</div>
+        {meeting.meetingLink && style.height >= 60 && (
+          <a
+            href={meeting.meetingLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="calendar-join"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Video size={12} /> Join
+          </a>
+        )}
+      </div>
+
+      {/* Expanded meeting modal */}
+      {expanded && (
+        <div className="meeting-modal-overlay" onClick={() => setExpanded(false)}>
+          <div className={`meeting-modal ${isMentoring ? 'mentoring' : ''}`} onClick={(e) => e.stopPropagation()}>
+            <div className="meeting-modal-header">
+              <div className="meeting-modal-time">{meeting.time} - {meeting.endTime} · {meeting.duration}</div>
+              <button className="meeting-modal-close" onClick={() => setExpanded(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <h3 className="meeting-modal-title">{displayTitle}</h3>
+
+            {meeting.subtitle && meeting.subtitle !== displayTitle && (
+              <div className="meeting-modal-subtitle">{meeting.subtitle}</div>
+            )}
+
+            {meeting.meetingLink && (
+              <a
+                href={meeting.meetingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="meeting-join-btn"
+              >
+                <Video size={14} />
+                <span>Join Meeting</span>
+              </a>
+            )}
+
+            <div className="meeting-notes-section">
+              <label className="meeting-notes-label">Notes</label>
+              <textarea
+                className="meeting-notes-input"
+                placeholder="Add notes for this meeting..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={4}
+              />
+            </div>
+
+            <div className="meeting-modal-actions">
+              <button className="meeting-action-btn" onClick={() => setExpanded(false)}>
+                <Check size={14} />
+                <span>Done</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 const DayTimeline = ({ meetings }: { meetings: AgendaItem[] }) => {
   const START_HOUR = 8
   const END_HOUR = 20
@@ -689,21 +856,15 @@ const DayTimeline = ({ meetings }: { meetings: AgendaItem[] }) => {
         {meetings.map(meeting => {
           const { top, height, isNow, isPast } = getMeetingStyle(meeting)
           const isMentoring = (meeting.title || '').toLowerCase().includes('mentoring')
-          const displayTitle = meeting.title || meeting.subtitle || 'Untitled Meeting'
           return (
-            <div
+            <MeetingCard
               key={meeting.id}
-              className={`calendar-meeting ${isNow ? 'now' : ''} ${isPast ? 'past' : ''} ${isMentoring ? 'mentoring' : ''}`}
+              meeting={meeting}
               style={{ top, height }}
-            >
-              <div className="calendar-meeting-time">{meeting.time} · {meeting.duration}</div>
-              <div className="calendar-meeting-title">{displayTitle}</div>
-              {meeting.meetingLink && (
-                <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer" className="calendar-join">
-                  <Video size={12} /> Join
-                </a>
-              )}
-            </div>
+              isNow={isNow}
+              isPast={isPast}
+              isMentoring={isMentoring}
+            />
           )
         })}
 
@@ -719,6 +880,42 @@ const DayTimeline = ({ meetings }: { meetings: AgendaItem[] }) => {
 }
 
 // Smart action recommendation based on email content
+// Check if email appears to be from a human (not automated/newsletter/system)
+const isHumanEmail = (message: AgendaItem): boolean => {
+  const content = `${message.title} ${message.subtitle || ''} ${message.description || ''}`.toLowerCase()
+  const sender = (message.subtitle || '').toLowerCase()
+
+  // Automated/system email patterns
+  const automatedPatterns = [
+    'noreply', 'no-reply', 'donotreply', 'do-not-reply',
+    'newsletter', 'notifications', 'alerts', 'updates',
+    'marketing', 'promotions', 'automated', 'system',
+    'support@', 'info@', 'hello@', 'team@', 'sales@',
+    'unsubscribe', 'weekly digest', 'daily digest',
+    'verify your', 'confirm your', 'security alert',
+    'sign-in', 'new sign-in', 'password reset',
+    'invoice', 'receipt', 'payment confirmation',
+    'order confirmation', 'shipping notification',
+    'subscription', 'renewal', 'expiring'
+  ]
+
+  // Check if sender or content matches automated patterns
+  for (const pattern of automatedPatterns) {
+    if (sender.includes(pattern) || content.includes(pattern)) {
+      return false
+    }
+  }
+
+  // Likely human if it has a question or personal greeting
+  if (content.includes('?') || content.includes('hi ') || content.includes('hey ') ||
+      content.includes('hello ') || content.includes('dear ')) {
+    return true
+  }
+
+  // Default to human if no automated patterns found
+  return true
+}
+
 const getRecommendedAction = (message: AgendaItem): { action: string; label: string; icon: 'delete' | 'reply' | 'unsubscribe' | 'archive' | 'review' } => {
   const content = `${message.title} ${message.description || ''}`.toLowerCase()
 
@@ -759,6 +956,7 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
   const isOutlook = message.type === 'outlook'
   const isSlack = message.type === 'slack'
   const isAnyEmail = isEmail || isOutlook
+  const showAIReplyOption = isAnyEmail && isHumanEmail(message)
 
   const recommendedAction = getRecommendedAction(message)
 
@@ -782,9 +980,12 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
       : `https://outlook.live.com/mail/0/inbox/id/${message.id}`
   }
 
+  // Toggle expanded state
+  const toggleExpanded = () => setExpanded(!expanded)
+
   return (
     <div className={`message-card ${getIconClass()}`}>
-      <div className="message-card-main">
+      <div className="message-card-main" onClick={toggleExpanded}>
         <div className="message-card-icon">
           {isEmail ? (
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -804,9 +1005,9 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
           <div className="message-card-from">{message.subtitle}</div>
           <div className="message-card-subject">{message.title}</div>
         </div>
-        <button className="message-card-expand" onClick={() => setExpanded(!expanded)}>
+        <div className="message-card-expand">
           <ChevronDown className={expanded ? 'rotated' : ''} size={16} />
-        </button>
+        </div>
       </div>
 
       {/* Primary action row */}
@@ -828,9 +1029,9 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
               <span>Archive</span>
             </button>
           ) : recommendedAction.icon === 'delete' ? (
-            <button className="message-action-btn" onClick={() => onDismiss(message.id)}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
-              <span>Delete</span>
+            <button className="message-action-btn" onClick={() => onArchive(message.id)}>
+              <Archive size={12} />
+              <span>Archive</span>
             </button>
           ) : (
             <button className="message-action-btn" onClick={() => setExpanded(true)}>
@@ -854,10 +1055,12 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
 
           {isAnyEmail && (
             <div className="message-card-actions">
-              <button className="msg-action-btn" onClick={() => setShowAIReply(!showAIReply)}>
-                <Sparkles size={12} />
-                <span>AI Reply</span>
-              </button>
+              {showAIReplyOption && (
+                <button className="msg-action-btn" onClick={() => setShowAIReply(!showAIReply)}>
+                  <Sparkles size={12} />
+                  <span>AI Reply</span>
+                </button>
+              )}
               <a href={getEmailUrl()} target="_blank" rel="noopener noreferrer" className="msg-action-btn">
                 <Reply size={12} />
                 <span>Reply</span>
@@ -870,10 +1073,6 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
                 <ExternalLink size={12} />
                 <span>Unsubscribe</span>
               </a>
-              <button className="msg-action-btn delete" onClick={() => onDismiss(message.id)}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
-                <span>Delete</span>
-              </button>
             </div>
           )}
 
