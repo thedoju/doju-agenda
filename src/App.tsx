@@ -35,21 +35,21 @@ import './App.css'
 .progress-pills { display: flex !important; gap: 4px; }
 .progress-pill { flex: 1; height: 6px !important; border-radius: 3px; background: var(--bg-hover, #222222); }
 .progress-pill.filled { background: var(--priority, #FCD443) !important; }
-.day-timeline { display: flex; gap: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-top: 12px; }
-.timeline-hours { display: flex; flex-direction: column; justify-content: space-between; min-width: 40px; }
-.timeline-hour-label { font-size: 10px; color: var(--text-muted); text-align: right; }
-.timeline-track { flex: 1; position: relative; min-height: 360px; background: var(--bg-card); border-radius: 8px; overflow: hidden; }
-.timeline-grid-line { position: absolute; left: 0; right: 0; height: 1px; background: var(--border); }
-.timeline-now { position: absolute; left: 0; right: 0; z-index: 10; display: flex; align-items: center; }
-.timeline-now-dot { width: 8px; height: 8px; background: var(--priority); border-radius: 50%; margin-left: -4px; }
-.timeline-now-line { flex: 1; height: 2px; background: var(--priority); }
-.timeline-meeting { position: absolute; left: 8px; right: 8px; background: var(--bg-hover); border-left: 3px solid var(--text-muted); border-radius: 6px; padding: 8px 10px; display: flex; gap: 8px; }
-.timeline-meeting.now { border-left-color: var(--priority); background: rgba(252, 212, 67, 0.1); }
-.timeline-meeting.past { opacity: 0.5; }
-.timeline-meeting-time { font-size: 11px; color: var(--text-secondary); }
-.timeline-meeting-title { font-size: 13px; color: var(--text-primary); }
-.timeline-meeting-subtitle { font-size: 11px; color: var(--text-muted); }
-.timeline-join-btn { width: 28px; height: 28px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; text-decoration: none; }
+.day-timeline-list { display: flex; flex-direction: column; gap: 0; margin-top: 12px; }
+.day-timeline-empty { display: flex; flex-direction: column; align-items: center; padding: 48px 24px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; margin-top: 12px; }
+.timeline-gap { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+.timeline-gap-line { flex: 1; height: 1px; background: var(--border); }
+.timeline-gap-text { font-size: 11px; color: var(--success); background: var(--bg-secondary); padding: 4px 10px; border-radius: 12px; border: 1px solid var(--border); }
+.timeline-meeting-card { display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; border-left: 4px solid var(--text-muted); }
+.timeline-meeting-card.now { border-left-color: var(--priority); background: rgba(252, 212, 67, 0.08); }
+.timeline-meeting-card.past { opacity: 0.5; }
+.timeline-meeting-time-col { display: flex; flex-direction: column; align-items: center; min-width: 50px; gap: 2px; }
+.timeline-time-start { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+.timeline-time-duration { font-size: 11px; color: var(--text-muted); }
+.timeline-meeting-details { flex: 1; min-width: 0; }
+.timeline-meeting-title { font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
+.timeline-meeting-subtitle { font-size: 12px; color: var(--text-muted); }
+.timeline-join-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-secondary); text-decoration: none; }
 .task-filter-tabs { display: flex; gap: 4px; margin-bottom: 16px; padding: 4px; background: var(--bg-primary); border-radius: 8px; }
 .filter-tab { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: transparent; border: none; border-radius: 6px; font-size: 12px; font-family: inherit; color: var(--text-muted); cursor: pointer; }
 .filter-tab:hover { color: var(--text-secondary); background: var(--bg-hover); }
@@ -612,98 +612,98 @@ const StatusTag = ({ status, onChange }: { status: string; onChange: (newStatus:
   )
 }
 
-// Day Timeline Component - Visual calendar from 8am to 8pm
+// Day Timeline Component - Visual schedule with time slots
 const DayTimeline = ({ meetings }: { meetings: AgendaItem[] }) => {
-  const START_HOUR = 8 // 8am
-  const END_HOUR = 20 // 8pm
-  const TOTAL_HOURS = END_HOUR - START_HOUR // 12 hours
-
   const now = new Date()
   const currentHour = now.getHours()
   const currentMinute = now.getMinutes()
 
-  // Calculate current time position as percentage
-  const currentTimeMinutes = (currentHour - START_HOUR) * 60 + currentMinute
-  const totalMinutes = TOTAL_HOURS * 60
-  const currentTimePercent = Math.max(0, Math.min(100, (currentTimeMinutes / totalMinutes) * 100))
-  const showCurrentTime = currentHour >= START_HOUR && currentHour < END_HOUR
-
-  // Generate hour markers
-  const hourMarkers = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => {
-    const hour = START_HOUR + i
-    const label = hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`
-    return { hour, label, percent: (i / TOTAL_HOURS) * 100 }
-  })
-
-  // Calculate meeting positions
-  const getMeetingPosition = (meeting: AgendaItem) => {
+  // Check meeting status
+  const getMeetingStatus = (meeting: AgendaItem) => {
     const [startHour, startMin] = (meeting.time || '08:00').split(':').map(Number)
     const [endHour, endMin] = (meeting.endTime || '09:00').split(':').map(Number)
 
-    const startMinutes = (startHour - START_HOUR) * 60 + startMin
-    const endMinutes = (endHour - START_HOUR) * 60 + endMin
+    const startTotal = startHour * 60 + startMin
+    const endTotal = endHour * 60 + endMin
+    const nowTotal = currentHour * 60 + currentMinute
 
-    const top = Math.max(0, (startMinutes / totalMinutes) * 100)
-    const height = Math.max(2, ((endMinutes - startMinutes) / totalMinutes) * 100)
+    const isNow = nowTotal >= startTotal && nowTotal < endTotal
+    const isPast = nowTotal >= endTotal
 
-    // Check if meeting is current
-    const isNow = currentHour === startHour && currentMinute >= startMin &&
-                  (currentHour < endHour || (currentHour === endHour && currentMinute < endMin))
-    const isPast = currentHour > endHour || (currentHour === endHour && currentMinute >= endMin)
+    return { isNow, isPast }
+  }
 
-    return { top, height, isNow, isPast }
+  // Sort meetings by time
+  const sortedMeetings = [...meetings].sort((a, b) => {
+    const timeA = a.time || '00:00'
+    const timeB = b.time || '00:00'
+    return timeA.localeCompare(timeB)
+  })
+
+  // Find gaps between meetings
+  const getGapBefore = (meeting: AgendaItem, index: number) => {
+    if (index === 0) return null
+    const prevMeeting = sortedMeetings[index - 1]
+    const prevEnd = prevMeeting.endTime || '09:00'
+    const currentStart = meeting.time || '08:00'
+
+    const [prevEndHour, prevEndMin] = prevEnd.split(':').map(Number)
+    const [currStartHour, currStartMin] = currentStart.split(':').map(Number)
+
+    const gapMinutes = (currStartHour * 60 + currStartMin) - (prevEndHour * 60 + prevEndMin)
+
+    if (gapMinutes >= 30) {
+      const hours = Math.floor(gapMinutes / 60)
+      const mins = gapMinutes % 60
+      return hours > 0 ? `${hours}h ${mins > 0 ? `${mins}m` : ''} free` : `${mins}m free`
+    }
+    return null
+  }
+
+  if (sortedMeetings.length === 0) {
+    return (
+      <div className="day-timeline-empty">
+        <div className="empty-calendar-icon">📅</div>
+        <div className="empty-calendar-text">No meetings today</div>
+        <div className="empty-calendar-subtext">Your calendar is clear</div>
+      </div>
+    )
   }
 
   return (
-    <div className="day-timeline">
-      <div className="timeline-hours">
-        {hourMarkers.filter((_, i) => i % 2 === 0).map(({ hour, label }) => (
-          <div key={hour} className="timeline-hour-label">{label}</div>
-        ))}
-      </div>
-      <div className="timeline-track">
-        {/* Hour grid lines */}
-        {hourMarkers.map(({ hour, percent }) => (
-          <div
-            key={hour}
-            className={`timeline-grid-line ${hour % 2 === 0 ? 'major' : 'minor'}`}
-            style={{ top: `${percent}%` }}
-          />
-        ))}
+    <div className="day-timeline-list">
+      {sortedMeetings.map((meeting, index) => {
+        const { isNow, isPast } = getMeetingStatus(meeting)
+        const gap = getGapBefore(meeting, index)
 
-        {/* Current time indicator */}
-        {showCurrentTime && (
-          <div className="timeline-now" style={{ top: `${currentTimePercent}%` }}>
-            <div className="timeline-now-dot" />
-            <div className="timeline-now-line" />
-          </div>
-        )}
-
-        {/* Meetings */}
-        {meetings.map(meeting => {
-          const { top, height, isNow, isPast } = getMeetingPosition(meeting)
-          return (
-            <div
-              key={meeting.id}
-              className={`timeline-meeting ${isNow ? 'now' : ''} ${isPast ? 'past' : ''}`}
-              style={{ top: `${top}%`, height: `${height}%` }}
-            >
-              <div className="timeline-meeting-content">
-                <div className="timeline-meeting-time">
-                  {meeting.time} <span className="timeline-meeting-duration">({meeting.duration})</span>
-                </div>
+        return (
+          <div key={meeting.id}>
+            {gap && (
+              <div className="timeline-gap">
+                <div className="timeline-gap-line" />
+                <span className="timeline-gap-text">{gap}</span>
+                <div className="timeline-gap-line" />
+              </div>
+            )}
+            <div className={`timeline-meeting-card ${isNow ? 'now' : ''} ${isPast ? 'past' : ''}`}>
+              <div className="timeline-meeting-time-col">
+                <span className="timeline-time-start">{meeting.time}</span>
+                <span className="timeline-time-duration">{meeting.duration}</span>
+              </div>
+              <div className="timeline-meeting-details">
                 <div className="timeline-meeting-title">{meeting.title}</div>
                 {meeting.subtitle && <div className="timeline-meeting-subtitle">{meeting.subtitle}</div>}
               </div>
               {meeting.meetingLink && (
                 <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer" className="timeline-join-btn">
-                  <Video size={12} />
+                  <Video size={14} />
+                  <span>Join</span>
                 </a>
               )}
             </div>
-          )
-        })}
-      </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
