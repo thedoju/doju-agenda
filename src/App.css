@@ -1695,6 +1695,16 @@ body.light-mode .action-btn-small.complete {
   opacity: 0.4;
 }
 
+/* Mentoring sessions - Doju Mentees (always yellow) */
+.calendar-meeting.mentoring {
+  border-left-color: var(--priority);
+  background: rgba(252, 212, 67, 0.12);
+}
+
+.calendar-meeting.mentoring .calendar-meeting-title {
+  color: var(--priority);
+}
+
 .calendar-meeting-time {
   font-size: 10px;
   color: var(--text-muted);
@@ -1904,6 +1914,11 @@ body.light-mode .action-btn-small.complete {
   background: var(--bg-hover);
   color: var(--text-secondary);
   border-color: var(--text-muted);
+}
+
+.msg-action-btn.delete:hover {
+  color: #ea4335;
+  border-color: #ea4335;
 }
 
 /* Legacy Message Item - Different from Task Item */

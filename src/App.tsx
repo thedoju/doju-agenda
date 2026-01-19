@@ -688,14 +688,16 @@ const DayTimeline = ({ meetings }: { meetings: AgendaItem[] }) => {
         {/* Meetings */}
         {meetings.map(meeting => {
           const { top, height, isNow, isPast } = getMeetingStyle(meeting)
+          const isMentoring = (meeting.title || '').toLowerCase().includes('mentoring')
+          const displayTitle = meeting.title || meeting.subtitle || 'Untitled Meeting'
           return (
             <div
               key={meeting.id}
-              className={`calendar-meeting ${isNow ? 'now' : ''} ${isPast ? 'past' : ''}`}
+              className={`calendar-meeting ${isNow ? 'now' : ''} ${isPast ? 'past' : ''} ${isMentoring ? 'mentoring' : ''}`}
               style={{ top, height }}
             >
               <div className="calendar-meeting-time">{meeting.time} · {meeting.duration}</div>
-              <div className="calendar-meeting-title">{meeting.title}</div>
+              <div className="calendar-meeting-title">{displayTitle}</div>
               {meeting.meetingLink && (
                 <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer" className="calendar-join">
                   <Video size={12} /> Join
@@ -857,14 +859,18 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
                 <span>AI Reply</span>
               </button>
               <a href={getEmailUrl()} target="_blank" rel="noopener noreferrer" className="msg-action-btn">
-                <ExternalLink size={12} />
-                <span>Open</span>
+                <Reply size={12} />
+                <span>Reply</span>
               </a>
               <button className="msg-action-btn" onClick={() => onArchive(message.id)}>
                 <Archive size={12} />
                 <span>Archive</span>
               </button>
-              <button className="msg-action-btn" onClick={() => onDismiss(message.id)}>
+              <a href={getEmailUrl()} target="_blank" rel="noopener noreferrer" className="msg-action-btn">
+                <ExternalLink size={12} />
+                <span>Unsubscribe</span>
+              </a>
+              <button className="msg-action-btn delete" onClick={() => onDismiss(message.id)}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
                 <span>Delete</span>
               </button>
