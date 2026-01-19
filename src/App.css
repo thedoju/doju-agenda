@@ -1799,7 +1799,17 @@ body.light-mode .action-btn-small.complete {
 }
 
 .calendar-meeting.past {
-  opacity: 0.4;
+  opacity: 0.5;
+  background: var(--bg-card);
+}
+
+.calendar-meeting.past::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 /* Mentoring sessions - Doju Mentees (always yellow) */
@@ -2780,6 +2790,7 @@ body.light-mode .action-btn-small.complete {
 .message-group-items .message-card {
   margin-bottom: 6px;
   border-radius: 8px;
+  border-left: none;
 }
 
 .message-group-items .message-card:last-child {
