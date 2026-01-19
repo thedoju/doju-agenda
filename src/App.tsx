@@ -607,6 +607,38 @@ const MeetingItem = ({ meeting }: { meeting: AgendaItem }) => {
   )
 }
 
+// Smart action recommendation based on email content
+const getRecommendedAction = (message: AgendaItem): { action: string; label: string; icon: 'delete' | 'reply' | 'unsubscribe' | 'archive' | 'review' } => {
+  const content = `${message.title} ${message.description || ''}`.toLowerCase()
+
+  // Unsubscribe patterns
+  if (content.includes('unsubscribe') || content.includes('newsletter') || content.includes('marketing') ||
+      content.includes('promotional') || content.includes('weekly digest') || content.includes('daily digest')) {
+    return { action: 'unsubscribe', label: 'Unsubscribe', icon: 'unsubscribe' }
+  }
+
+  // Delete patterns (spam-like, notifications)
+  if (content.includes('verify your') || content.includes('confirm your') || content.includes('security alert') ||
+      content.includes('sign-in') || content.includes('new sign-in') || content.includes('access to some of your')) {
+    return { action: 'delete', label: 'Delete', icon: 'delete' }
+  }
+
+  // Reply patterns (questions, requests, meetings)
+  if (content.includes('?') || content.includes('meeting') || content.includes('schedule') ||
+      content.includes('call') || content.includes('discuss') || content.includes('available')) {
+    return { action: 'reply', label: 'Reply', icon: 'reply' }
+  }
+
+  // Review patterns (invoices, payments, reports)
+  if (content.includes('invoice') || content.includes('payment') || content.includes('receipt') ||
+      content.includes('report') || content.includes('document') || content.includes('review')) {
+    return { action: 'review', label: 'Review', icon: 'review' }
+  }
+
+  // Default to archive
+  return { action: 'archive', label: 'Archive', icon: 'archive' }
+}
+
 // Message Item Component - Different styling from tasks
 const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; onArchive: (id: string) => void; onDismiss: (id: string) => void }) => {
   const [expanded, setExpanded] = useState(false)
@@ -616,6 +648,8 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
   const isOutlook = message.type === 'outlook'
   const isSlack = message.type === 'slack'
   const isAnyEmail = isEmail || isOutlook
+
+  const recommendedAction = getRecommendedAction(message)
 
   const handleCopyReply = () => {
     navigator.clipboard.writeText(generateAIReply(message))
@@ -654,6 +688,16 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
         <div className="message-content">
           <div className="message-title">{message.title}</div>
           <div className="message-subtitle">{message.subtitle}</div>
+          {isAnyEmail && (
+            <div className={`recommended-action ${recommendedAction.icon}`}>
+              {recommendedAction.icon === 'delete' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>}
+              {recommendedAction.icon === 'reply' && <Reply size={10} />}
+              {recommendedAction.icon === 'unsubscribe' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64A9 9 0 115.64 18.36M12 2v10"/></svg>}
+              {recommendedAction.icon === 'archive' && <Archive size={10} />}
+              {recommendedAction.icon === 'review' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>}
+              <span>{recommendedAction.label}</span>
+            </div>
+          )}
         </div>
         <div className="message-actions">
           <button className="action-btn-small dismiss" onClick={(e) => { e.stopPropagation(); onDismiss(message.id); }} title="Dismiss">
