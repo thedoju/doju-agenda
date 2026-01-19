@@ -2643,6 +2643,149 @@ body.light-mode .action-btn-small.complete {
   border-color: var(--text-muted);
 }
 
+/* Message Group Toggle */
+.group-toggle {
+  padding: 4px 10px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 8px;
+}
+
+.group-toggle:hover {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+
+.group-toggle.active {
+  background: var(--priority);
+  color: var(--bg-primary);
+  border-color: var(--priority);
+}
+
+/* Message Group */
+.message-group {
+  background: var(--bg-card);
+  border-radius: 10px;
+  border-left: 3px solid var(--text-muted);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.message-group.email {
+  border-left-color: #ea4335;
+}
+
+.message-group.outlook {
+  border-left-color: #0078d4;
+}
+
+.message-group.slack {
+  border-left-color: #4a154b;
+}
+
+.message-group-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.message-group-header:hover {
+  background: var(--bg-hover);
+}
+
+.message-group-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg-primary);
+  flex-shrink: 0;
+}
+
+.message-group.email .message-group-icon {
+  color: #ea4335;
+}
+
+.message-group.outlook .message-group-icon {
+  color: #0078d4;
+}
+
+.message-group.slack .message-group-icon {
+  color: #4a154b;
+}
+
+.message-group-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.message-group-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.message-group-preview {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message-group-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-group-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.message-group-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.message-group-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+.message-group-items {
+  padding: 0 8px 8px;
+}
+
+.message-group-items .message-card {
+  margin-bottom: 6px;
+  border-radius: 8px;
+}
+
+.message-group-items .message-card:last-child {
+  margin-bottom: 0;
+}
+
 /* Mobile Responsive */
 @media (max-width: 480px) {
   .app {

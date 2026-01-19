@@ -114,6 +114,8 @@ interface AgendaItem {
   link?: string
   source?: string
   dueDate?: string // YYYY-MM-DD format
+  calendarColor?: string // Google Calendar event color
+  eventDate?: string // YYYY-MM-DD format for the event date
 }
 
 // LocalStorage keys
@@ -169,6 +171,8 @@ interface N8nWebhookResponse {
     end: string
     location: string
     meetLink: string
+    colorId?: string
+    backgroundColor?: string
   }>
   emails: {
     gmail: Array<{
@@ -257,21 +261,33 @@ const extractMeetingLink = (event: { description: string; location: string; meet
   return urlMatch ? urlMatch[0] : ''
 }
 
+// Google Calendar color mapping (colorId to hex)
+const GOOGLE_CALENDAR_COLORS: Record<string, string> = {
+  '1': '#7986cb',  // Lavender
+  '2': '#33b679',  // Sage
+  '3': '#8e24aa',  // Grape
+  '4': '#e67c73',  // Flamingo
+  '5': '#f6bf26',  // Banana
+  '6': '#f4511e',  // Tangerine
+  '7': '#039be5',  // Peacock
+  '8': '#616161',  // Graphite
+  '9': '#3f51b5',  // Blueberry
+  '10': '#0b8043', // Basil
+  '11': '#d50000', // Tomato
+}
+
 // Transform n8n webhook response to app data structure
 const transformWebhookData = (data: N8nWebhookResponse) => {
   const today = new Date()
+  today.setHours(0, 0, 0, 0)
   const todayStr = format(today, 'yyyy-MM-dd')
 
-  // Transform calendar events - FILTER TO TODAY ONLY
-  const allCalendarEvents: AgendaItem[] = data.calendar_events
-    .filter(event => {
-      // Check if event starts today
-      const eventDate = event.start.split('T')[0]
-      return eventDate === todayStr
-    })
-    .map(event => {
+  // Transform ALL calendar events (not just today)
+  const calendarEventsData = data.calendar_events || []
+  const allCalendarEvents: AgendaItem[] = calendarEventsData.map(event => {
     const startDate = new Date(event.start)
     const endDate = new Date(event.end)
+    const eventDateStr = event.start.split('T')[0]
     const durationMs = endDate.getTime() - startDate.getTime()
     const durationMins = Math.round(durationMs / 60000)
     const durationStr = durationMins >= 60
@@ -281,6 +297,10 @@ const transformWebhookData = (data: N8nWebhookResponse) => {
     // Clean up description - strip HTML
     const cleanDescription = stripHtml(event.description)
     const meetingLink = extractMeetingLink(event)
+
+    // Get color from colorId or backgroundColor
+    const calendarColor = event.backgroundColor ||
+      (event.colorId ? GOOGLE_CALENDAR_COLORS[event.colorId] : undefined)
 
     return {
       id: event.id,
@@ -292,21 +312,33 @@ const transformWebhookData = (data: N8nWebhookResponse) => {
       endTime: format(endDate, 'HH:mm'),
       duration: durationStr,
       meetingLink: meetingLink,
-      source: 'google_calendar'
+      source: 'google_calendar',
+      calendarColor: calendarColor,
+      eventDate: eventDateStr
     }
   })
 
-  // Sort by start time
-  const calendarEvents = allCalendarEvents.sort((a, b) => {
+  // Sort by date then time
+  const sortedEvents = allCalendarEvents.sort((a, b) => {
+    const dateA = a.eventDate || ''
+    const dateB = b.eventDate || ''
+    if (dateA !== dateB) return dateA.localeCompare(dateB)
     const timeA = a.time || '00:00'
     const timeB = b.time || '00:00'
     return timeA.localeCompare(timeB)
   })
 
-  // Transform Asana tasks
-  const tasks: AgendaItem[] = data.tasks.asana.map(task => {
-    const isToday = task.due_on === format(today, 'yyyy-MM-dd')
-    const isPastDue = task.due_on && new Date(task.due_on) < today
+  // Filter today's events for the main timeline
+  const calendarEvents = sortedEvents.filter(e => e.eventDate === todayStr)
+
+  // Transform Asana tasks - with null safety
+  const asanaTasks = data.tasks?.asana || []
+  console.log('Asana tasks from webhook:', asanaTasks.length, asanaTasks)
+
+  const tasks: AgendaItem[] = asanaTasks.map(task => {
+    const todayFormatted = format(today, 'yyyy-MM-dd')
+    const isToday = task.due_on === todayFormatted
+    const isPastDue = task.due_on ? new Date(task.due_on) < today : false
 
     return {
       id: task.id,
@@ -323,7 +355,8 @@ const transformWebhookData = (data: N8nWebhookResponse) => {
   })
 
   // Transform Gmail emails - use snippet as title if subject is missing
-  const gmailMessages: AgendaItem[] = data.emails.gmail.map(email => {
+  const gmailEmails = data.emails?.gmail || []
+  const gmailMessages: AgendaItem[] = gmailEmails.map(email => {
     const hasSubject = email.subject && email.subject !== 'No Subject'
     const hasFrom = email.from && email.from !== 'Unknown'
     const snippetPreview = email.snippet ? email.snippet.substring(0, 80) + (email.snippet.length > 80 ? '...' : '') : ''
@@ -341,7 +374,8 @@ const transformWebhookData = (data: N8nWebhookResponse) => {
   })
 
   // Transform Outlook emails
-  const outlookMessages: AgendaItem[] = data.emails.outlook.map(email => ({
+  const outlookEmails = data.emails?.outlook || []
+  const outlookMessages: AgendaItem[] = outlookEmails.map(email => ({
     id: email.id,
     type: 'outlook' as const,
     title: email.subject,
@@ -353,28 +387,26 @@ const transformWebhookData = (data: N8nWebhookResponse) => {
   }))
 
   // Transform Slack messages
-  const slackMessages: AgendaItem[] = data.messages.slack.map(msg => ({
+  const slackMsgs = data.messages?.slack || []
+  const slackMessages: AgendaItem[] = slackMsgs.map(msg => ({
     id: msg.id,
     type: 'slack' as const,
-    title: msg.text.substring(0, 100) + (msg.text.length > 100 ? '...' : ''),
-    subtitle: `${msg.user} in #${msg.channel}`,
-    description: msg.text,
+    title: msg.text ? msg.text.substring(0, 100) + (msg.text.length > 100 ? '...' : '') : '',
+    subtitle: `${msg.user || 'Unknown'} in #${msg.channel || 'general'}`,
+    description: msg.text || '',
     source: 'slack'
   }))
 
   // Combine all messages
   const messages: AgendaItem[] = [...gmailMessages, ...outlookMessages, ...slackMessages]
 
-  // Build week events (just today's events for now)
-  const weekEvents: DayEvents[] = [
-    { date: today, events: calendarEvents },
-    { date: addDays(today, 1), events: [] },
-    { date: addDays(today, 2), events: [] },
-    { date: addDays(today, 3), events: [] },
-    { date: addDays(today, 4), events: [] },
-    { date: addDays(today, 5), events: [] },
-    { date: addDays(today, 6), events: [] }
-  ]
+  // Build week events - distribute all events to their respective days
+  const weekEvents: DayEvents[] = Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(today, i)
+    const dayStr = format(day, 'yyyy-MM-dd')
+    const dayEvents = sortedEvents.filter(e => e.eventDate === dayStr)
+    return { date: day, events: dayEvents }
+  })
 
   return {
     tasks,
@@ -470,50 +502,100 @@ const generateAISummary = (
   messages: AgendaItem[],
   completedCount: number,
   hour: number,
-  _name: string
+  _name: string,
+  totalTasks: number
 ) => {
   const urgentTasks = tasks.filter(t => t.isPriority || t.status === 'due-today')
-  const emailMessages = messages.filter(m => m.type === 'email')
+  const emailMessages = messages.filter(m => m.type === 'email' || m.type === 'outlook')
+  const upcomingMeetings = meetings.filter(m => {
+    if (!m.time) return false
+    const [h] = m.time.split(':').map(Number)
+    return h >= hour
+  })
 
-  let progressContext = ''
-  if (completedCount > 0) {
-    progressContext = `You've knocked out ${completedCount} item${completedCount > 1 ? 's' : ''} already. `
-  }
-
-  if (urgentTasks.length === 0 && meetings.length === 0 && emailMessages.length === 0) {
-    if (hour >= 18) {
-      return progressContext + "Looks like a quiet evening - perfect for recharging."
+  // Early morning (before 9am) - Preparation mode
+  if (hour < 9) {
+    let summary = ''
+    if (meetings.length > 0) {
+      const firstMeeting = meetings[0]
+      summary = `Your first meeting is at ${firstMeeting.time} - ${firstMeeting.title}. `
     }
-    return progressContext + "Nothing urgent today. Good time for deep work or taking it easy."
+    if (urgentTasks.length > 0) {
+      summary += `${urgentTasks.length} priority task${urgentTasks.length > 1 ? 's' : ''} to tackle today. `
+    }
+    if (emailMessages.length > 0) {
+      summary += `${emailMessages.length} email${emailMessages.length > 1 ? 's' : ''} waiting for you. `
+    }
+    return summary + "Let's have a great day!"
   }
 
+  // Morning (9am-12pm) - Active work mode
+  if (hour < 12) {
+    let summary = ''
+    if (completedCount > 0) {
+      summary = `Nice start! ${completedCount} item${completedCount > 1 ? 's' : ''} done. `
+    }
+    if (upcomingMeetings.length > 0) {
+      summary += `${upcomingMeetings.length} meeting${upcomingMeetings.length > 1 ? 's' : ''} coming up. `
+    }
+    if (urgentTasks.length > 0) {
+      summary += `Focus on ${urgentTasks[0].title}. `
+    }
+    return summary || "Morning's looking clear - great time for deep work."
+  }
+
+  // Afternoon (12pm-5pm) - Momentum mode
+  if (hour < 17) {
+    let summary = ''
+    const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
+    if (progressPercent >= 75) {
+      summary = `Crushing it! ${progressPercent}% of your tasks done. `
+    } else if (progressPercent >= 50) {
+      summary = `Good momentum - halfway through your tasks. `
+    } else if (completedCount > 0) {
+      summary = `${completedCount} down, ${totalTasks - completedCount} to go. `
+    }
+    if (upcomingMeetings.length > 0) {
+      summary += `${upcomingMeetings.length} more meeting${upcomingMeetings.length > 1 ? 's' : ''} today. `
+    }
+    if (urgentTasks.length > 0 && progressPercent < 50) {
+      summary += `Don't forget: ${urgentTasks[0].title}. `
+    }
+    return summary || "Afternoon's looking good. Keep the momentum going!"
+  }
+
+  // Evening (5pm-8pm) - Wind down mode
+  if (hour < 20) {
+    let summary = ''
+    const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
+    if (progressPercent >= 80) {
+      summary = `Fantastic day! You completed ${completedCount} task${completedCount > 1 ? 's' : ''}. `
+    } else if (completedCount > 0) {
+      summary = `Solid effort today - ${completedCount} task${completedCount > 1 ? 's' : ''} completed. `
+    } else {
+      summary = "Day's winding down. "
+    }
+    if (upcomingMeetings.length > 0) {
+      summary += `Just ${upcomingMeetings.length} more meeting${upcomingMeetings.length > 1 ? 's' : ''} to go. `
+    }
+    summary += "Time to start wrapping up!"
+    return summary
+  }
+
+  // Night (after 8pm) - Congratulations mode
   let summary = ''
-
-  if (urgentTasks.length > 0) {
-    summary += `${urgentTasks[0].title} needs your attention. `
-  } else {
-    summary += "Nothing urgent today. "
+  if (completedCount > 0) {
+    const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
+    if (progressPercent >= 90) {
+      summary = `Amazing work today! You smashed ${completedCount} task${completedCount > 1 ? 's' : ''}. `
+    } else if (progressPercent >= 70) {
+      summary = `Great day! ${completedCount} task${completedCount > 1 ? 's' : ''} completed. `
+    } else {
+      summary = `You got ${completedCount} thing${completedCount > 1 ? 's' : ''} done today. `
+    }
   }
-
-  if (meetings.length > 0) {
-    summary += `You have ${meetings.length} meeting${meetings.length > 1 ? 's' : ''} today. `
-  }
-
-  if (emailMessages.length > 0) {
-    const senderMatch = emailMessages[0].subtitle.match(/From (.+)/)
-    const sender = senderMatch ? senderMatch[1].split('@')[0] : 'someone'
-    summary += `Message from ${sender} worth checking. `
-  }
-
-  if (hour >= 18) {
-    summary += "Wrap up and recharge."
-  } else if (hour >= 14) {
-    summary += "Solid afternoon ahead."
-  } else {
-    summary += "Good start to the day."
-  }
-
-  return progressContext + summary
+  summary += "Rest up - you've earned it. See you tomorrow!"
+  return summary
 }
 
 // Demo data
@@ -911,10 +993,15 @@ const MeetingCard = ({ meeting, style, isNow, isPast, isMentoring }: {
     saveToStorage(STORAGE_KEYS.meetingNotes, allNotes)
   }
 
+  // Modal style with calendar color
+  const modalStyle: React.CSSProperties = meeting.calendarColor
+    ? { borderLeftColor: meeting.calendarColor }
+    : {}
+
   // Use a portal to render the modal at the document body level
   const modalContent = expanded ? (
     <div className="meeting-modal-overlay" onClick={() => setExpanded(false)}>
-      <div className={`meeting-modal ${isMentoring ? 'mentoring' : ''}`} onClick={(e) => e.stopPropagation()}>
+      <div className={`meeting-modal ${isMentoring ? 'mentoring' : ''}`} style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div className="meeting-modal-header">
           <div className="meeting-modal-time">{meeting.time} - {meeting.endTime} · {meeting.duration}</div>
           <button className="meeting-modal-close" onClick={() => setExpanded(false)}>
@@ -960,11 +1047,18 @@ const MeetingCard = ({ meeting, style, isNow, isPast, isMentoring }: {
     </div>
   ) : null
 
+  // Use calendarColor for the border if available
+  const meetingStyle: React.CSSProperties = {
+    top: style.top,
+    height: style.height,
+    ...(meeting.calendarColor && { borderLeftColor: meeting.calendarColor })
+  }
+
   return (
     <>
       <div
         className={`calendar-meeting ${isNow ? 'now' : ''} ${isPast ? 'past' : ''} ${isMentoring ? 'mentoring' : ''}`}
-        style={{ top: style.top, height: style.height }}
+        style={meetingStyle}
         onClick={() => setExpanded(true)}
       >
         <div className="calendar-meeting-time">{meeting.time} · {meeting.duration}</div>
@@ -1156,6 +1250,87 @@ export const getRecommendedAction = (message: AgendaItem): { action: string; lab
 
   // Default to archive
   return { action: 'archive', label: 'Archive', icon: 'archive' }
+}
+
+// Message Group Component - Collapsible group for similar message types
+const MessageGroup = ({
+  type,
+  messages,
+  onArchive,
+  onDismiss
+}: {
+  type: 'gmail' | 'outlook' | 'slack'
+  messages: AgendaItem[]
+  onArchive: (id: string) => void
+  onDismiss: (id: string) => void
+}) => {
+  const [expanded, setExpanded] = useState(false)
+
+  const getIcon = () => {
+    if (type === 'gmail') return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
+      </svg>
+    )
+    if (type === 'outlook') return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M24 7.387v10.478c0 .23-.08.424-.238.576-.158.154-.352.23-.58.23h-8.547v-6.959l1.6 1.229c.101.063.222.094.36.094.14 0 .26-.031.361-.094l6.805-5.222c.087-.056.165-.14.234-.248.07-.108.105-.217.105-.326v-.158c0-.2-.07-.359-.21-.477-.14-.118-.298-.177-.472-.177h-.186l-7.037 5.408-1.01-.775V5.25h8.547c.228 0 .422.078.58.232.158.154.238.348.238.576v1.33zM14.635 6.287v12.19c0 .193-.07.357-.21.495-.14.136-.308.204-.508.204H.717c-.2 0-.368-.068-.507-.204a.674.674 0 0 1-.21-.495V6.287c0-.193.07-.358.21-.494.14-.138.308-.206.507-.206h13.2c.2 0 .368.068.508.206.14.136.21.3.21.494z"/>
+      </svg>
+    )
+    return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+      </svg>
+    )
+  }
+
+  const getLabel = () => {
+    if (type === 'gmail') return 'Gmail'
+    if (type === 'outlook') return 'Outlook'
+    return 'Slack'
+  }
+
+  const getColorClass = () => {
+    if (type === 'gmail') return 'email'
+    if (type === 'outlook') return 'outlook'
+    return 'slack'
+  }
+
+  // Get preview of first message
+  const firstMessage = messages[0]
+  const previewText = firstMessage ? firstMessage.title : ''
+
+  return (
+    <div className={`message-group ${getColorClass()} ${expanded ? 'expanded' : ''}`}>
+      <div className="message-group-header" onClick={() => setExpanded(!expanded)}>
+        <div className="message-group-icon">
+          {getIcon()}
+        </div>
+        <div className="message-group-info">
+          <div className="message-group-label">{getLabel()}</div>
+          <div className="message-group-preview">
+            {expanded ? `${messages.length} message${messages.length > 1 ? 's' : ''}` : previewText}
+          </div>
+        </div>
+        <div className="message-group-meta">
+          <span className="message-group-count">{messages.length}</span>
+          <ChevronDown className={`message-group-chevron ${expanded ? 'rotated' : ''}`} size={16} />
+        </div>
+      </div>
+      {expanded && (
+        <div className="message-group-items">
+          {messages.map(msg => (
+            <MessageItem
+              key={msg.id}
+              message={msg}
+              onArchive={onArchive}
+              onDismiss={onDismiss}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Message Item Component - Different styling from tasks
@@ -1440,11 +1615,14 @@ const WeekView = ({ weekEvents, selectedDay, onSelectDay }: { weekEvents: DayEve
               {total > 0 && (
                 <div className="day-event-indicators">
                   {dayEvents.slice(0, 3).map((event, i) => {
-                    const isMentoring = (event.title || '').toLowerCase().includes('mentoring')
+                    const dotStyle: React.CSSProperties = event.calendarColor
+                      ? { background: event.calendarColor }
+                      : {}
                     return (
                       <div
                         key={i}
-                        className={`event-dot ${isMentoring ? 'mentoring' : ''}`}
+                        className="event-dot"
+                        style={dotStyle}
                         title={event.title}
                       />
                     )
@@ -1463,12 +1641,16 @@ const WeekView = ({ weekEvents, selectedDay, onSelectDay }: { weekEvents: DayEve
             <span className="event-count">{selectedDayEvents.length} {selectedDayEvents.length === 1 ? 'event' : 'events'}</span>
           </div>
           {selectedDayEvents.length > 0 ? selectedDayEvents.map((event) => {
-            const isMentoring = (event.title || '').toLowerCase().includes('mentoring')
+            const cardStyle: React.CSSProperties = event.calendarColor
+              ? { borderLeftColor: event.calendarColor }
+              : {}
             return (
-              <div key={event.id} className={`week-event-card ${isMentoring ? 'mentoring' : ''}`}>
+              <div key={event.id} className="week-event-card" style={cardStyle}>
                 <div className="week-event-time">{event.time}</div>
                 <div className="week-event-details">
-                  <div className="week-event-title">{event.title}</div>
+                  <div className="week-event-title" style={event.calendarColor ? { color: event.calendarColor } : {}}>
+                    {event.title}
+                  </div>
                   {event.duration && <div className="week-event-duration">{event.duration}</div>}
                 </div>
                 {event.meetingLink && (
@@ -1646,6 +1828,7 @@ function App() {
   const [undoHistory, setUndoHistory] = useState<Array<{ type: 'complete' | 'dismiss'; id: string }>>([])
   const [showUndoToast, setShowUndoToast] = useState(false)
   const [taskFilter, setTaskFilter] = useState<'all' | 'complete' | 'deleted' | 'priority'>('all')
+  const [groupMessages, setGroupMessages] = useState(true) // Toggle for nested/ungrouped messages
 
   // Persist state to localStorage when they change
   useEffect(() => { saveToStorage(STORAGE_KEYS.completedIds, completedIds) }, [completedIds])
@@ -1683,7 +1866,11 @@ function App() {
         throw new Error(`Failed to fetch: ${response.status}`)
       }
       const data: N8nWebhookResponse = await response.json()
+      console.log('Raw webhook response:', data)
+      console.log('Tasks in response:', data.tasks)
+      console.log('Summary:', data.summary)
       const transformed = transformWebhookData(data)
+      console.log('Transformed data:', transformed)
       setAgendaData(transformed)
       setLastUpdated(new Date())
     } catch (err) {
@@ -1836,7 +2023,7 @@ function App() {
   }
 
   const greeting = getGreeting(currentTime.getHours(), userName, getDayOfYear(currentTime))
-  const aiSummary = generateAISummary(activeTasks, todayMeetings, activeMessages, completedCount, currentTime.getHours(), userName)
+  const aiSummary = generateAISummary(activeTasks, todayMeetings, activeMessages, completedCount, currentTime.getHours(), userName, totalItems)
 
   // Pause state for speech synthesis
   const [isPaused, setIsPaused] = useState(false)
@@ -2104,17 +2291,68 @@ function App() {
         <div className="section messages-section">
           <div className="section-header">
             <div className="section-label">Messages</div>
-            <div className="section-meta"><span className="meta-count">{activeMessages.length}</span></div>
+            <div className="section-meta">
+              <span className="meta-count">{activeMessages.length}</span>
+              <button
+                className={`group-toggle ${groupMessages ? 'active' : ''}`}
+                onClick={() => setGroupMessages(!groupMessages)}
+                title={groupMessages ? 'Show all messages' : 'Group by source'}
+              >
+                {groupMessages ? 'Grouped' : 'All'}
+              </button>
+            </div>
           </div>
           <div className="section-content">
-            {activeMessages.length > 0 ? activeMessages.map(msg => (
-              <MessageItem
-                key={msg.id}
-                message={msg}
-                onArchive={handleComplete}
-                onDismiss={handleDismiss}
-              />
-            )) : <div className="empty-state">No messages</div>}
+            {activeMessages.length > 0 ? (
+              groupMessages ? (
+                // Grouped view
+                <>
+                  {(() => {
+                    const gmailMessages = activeMessages.filter(m => m.type === 'email' || m.source === 'gmail')
+                    const outlookMessages = activeMessages.filter(m => m.type === 'outlook' || m.source === 'outlook')
+                    const slackMessages = activeMessages.filter(m => m.type === 'slack' || m.source === 'slack')
+                    return (
+                      <>
+                        {gmailMessages.length > 0 && (
+                          <MessageGroup
+                            type="gmail"
+                            messages={gmailMessages}
+                            onArchive={handleComplete}
+                            onDismiss={handleDismiss}
+                          />
+                        )}
+                        {outlookMessages.length > 0 && (
+                          <MessageGroup
+                            type="outlook"
+                            messages={outlookMessages}
+                            onArchive={handleComplete}
+                            onDismiss={handleDismiss}
+                          />
+                        )}
+                        {slackMessages.length > 0 && (
+                          <MessageGroup
+                            type="slack"
+                            messages={slackMessages}
+                            onArchive={handleComplete}
+                            onDismiss={handleDismiss}
+                          />
+                        )}
+                      </>
+                    )
+                  })()}
+                </>
+              ) : (
+                // Ungrouped view - show all messages
+                activeMessages.map(msg => (
+                  <MessageItem
+                    key={msg.id}
+                    message={msg}
+                    onArchive={handleComplete}
+                    onDismiss={handleDismiss}
+                  />
+                ))
+              )
+            ) : <div className="empty-state">No messages</div>}
           </div>
         </div>
       </main>
