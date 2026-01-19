@@ -666,7 +666,7 @@ body {
   background: var(--text-secondary);
 }
 
-/* Event count badge */
+/* Event count badge - deprecated, use indicators */
 .day-event-count {
   margin-top: 6px;
   font-size: 10px;
@@ -681,6 +681,46 @@ body {
   color: var(--bg-primary);
 }
 
+/* Event indicators - colored dots */
+.day-event-indicators {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.event-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.event-dot.mentoring {
+  background: var(--priority);
+}
+
+.week-day:hover .event-dot {
+  transform: scale(1.2);
+}
+
+.event-more {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+/* Selected day styling */
+.week-day.selected {
+  background: var(--bg-card);
+  border-color: var(--text-secondary);
+}
+
+.week-day.has-events {
+  cursor: pointer;
+}
+
 /* Day Events Panel */
 .day-events-panel {
   margin-top: 20px;
@@ -689,9 +729,32 @@ body {
 }
 
 .day-events-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 13px;
   color: var(--text-primary);
   margin-bottom: 16px;
+}
+
+.day-events-header .event-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Week event card - mentoring variant */
+.week-event-card.mentoring {
+  border-left-color: var(--priority);
+  background: rgba(252, 212, 67, 0.08);
+}
+
+.week-event-card.mentoring .week-event-title {
+  color: var(--priority);
+}
+
+.week-event-duration {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .day-event-item {
@@ -1061,6 +1124,50 @@ body {
 .task-subtitle {
   font-size: 12px;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Due date badges */
+.due-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.due-badge.overdue {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.due-badge.due-today {
+  background: rgba(252, 212, 67, 0.15);
+  color: var(--priority);
+}
+
+.due-badge.due-soon {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+/* Task item overdue state */
+.task-item.overdue {
+  border-left-color: #ef4444;
+}
+
+.task-item.overdue .task-title {
+  color: #ef4444;
+}
+
+.task-item.due-today {
+  border-left-color: var(--priority);
 }
 
 /* ORPIX for task times */
@@ -2336,6 +2443,204 @@ body.light-mode .action-btn-small.complete {
 
 .spotify-embed iframe {
   border-radius: 12px;
+}
+
+/* Integrations Panel */
+.integrations-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.integrations-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background 0.2s;
+}
+
+.integrations-header:hover {
+  background: var(--bg-hover);
+}
+
+.integrations-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.integrations-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.integrations-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.integrations-chevron {
+  transition: transform 0.2s;
+  color: var(--text-muted);
+}
+
+.integrations-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+.integrations-list {
+  padding: 0 16px 16px;
+}
+
+.integration-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border-left: 3px solid transparent;
+}
+
+.integration-item.connected {
+  border-left-color: var(--success);
+}
+
+.integration-item.disconnected {
+  border-left-color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.integration-item.error {
+  border-left-color: #ef4444;
+}
+
+.integration-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.integration-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.integration-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.integration-sync {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.integration-sync.disconnected {
+  color: var(--text-muted);
+}
+
+.integration-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-icon.connected {
+  color: var(--success);
+}
+
+.status-icon.disconnected {
+  color: var(--text-muted);
+}
+
+.status-icon.error {
+  color: #ef4444;
+}
+
+.integration-connect-btn {
+  padding: 6px 12px;
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.integration-connect-btn:hover {
+  opacity: 0.85;
+}
+
+.integration-settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.integration-settings-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.integrations-footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.add-integration-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: all 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+
+.add-integration-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-color: var(--text-muted);
 }
 
 /* Mobile Responsive */

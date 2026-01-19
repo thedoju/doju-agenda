@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react'
-import { format, isToday, addDays, isSameDay, startOfWeek, addWeeks, getDayOfYear } from 'date-fns'
+import React, { useState, useEffect } from 'react'
+import ReactDOM from 'react-dom'
+import { format, isToday, addDays, isSameDay, addWeeks, getDayOfYear } from 'date-fns'
 import {
   ChevronDown,
   RefreshCw,
-  Cloud,
   Sun,
-  CloudRain,
   ExternalLink,
   Sparkles,
   MapPin,
@@ -23,7 +22,13 @@ import {
   Pause,
   Pin,
   Video,
-  Clock
+  Clock,
+  X,
+  Check,
+  CheckCircle,
+  AlertCircle,
+  Settings,
+  Link2
 } from 'lucide-react'
 import './App.css'
 
@@ -108,6 +113,37 @@ interface AgendaItem {
   aiSummary?: string
   link?: string
   source?: string
+  dueDate?: string // YYYY-MM-DD format
+}
+
+// LocalStorage keys
+const STORAGE_KEYS = {
+  completedIds: 'doju-completed-ids',
+  dismissedIds: 'doju-dismissed-ids',
+  taskPriorities: 'doju-task-priorities',
+  taskStatuses: 'doju-task-statuses',
+  meetingNotes: 'doju-meeting-notes',
+  customTasks: 'doju-custom-tasks',
+  taskOrder: 'doju-task-order'
+}
+
+// Helper to load from localStorage
+const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
+  try {
+    const stored = localStorage.getItem(key)
+    return stored ? JSON.parse(stored) : defaultValue
+  } catch {
+    return defaultValue
+  }
+}
+
+// Helper to save to localStorage
+const saveToStorage = <T,>(key: string, value: T): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (e) {
+    console.warn('Failed to save to localStorage:', e)
+  }
 }
 
 // n8n Webhook Response Types
@@ -281,7 +317,8 @@ const transformWebhookData = (data: N8nWebhookResponse) => {
       priority: isPastDue ? 'urgent' : (isToday ? 'today' : 'normal'),
       isPriority: isPastDue || isToday,
       status: task.completed ? 'complete' : (isToday ? 'due-today' : 'pending'),
-      source: 'asana'
+      source: 'asana',
+      dueDate: task.due_on || undefined
     }
   })
 
@@ -522,14 +559,164 @@ const generateDemoData = () => {
   return { tasks, todayMeetings, weekEvents, messages }
 }
 
-const WeatherIcon = ({ condition }: { condition: string }) => {
-  const c = condition.toLowerCase()
-  if (c.includes('rain')) return <CloudRain size={14} />
-  if (c.includes('cloud')) return <Cloud size={14} />
-  return <Sun size={14} />
+// Doju Logo Component
+// Integration status types
+interface IntegrationStatus {
+  id: string
+  name: string
+  icon: React.ReactNode
+  status: 'connected' | 'disconnected' | 'error'
+  lastSync?: string
+  color: string
 }
 
-// Doju Logo Component
+// Integrations Panel - shows connection status for all services
+const IntegrationsPanel = () => {
+  const [expanded, setExpanded] = useState(false)
+
+  // In a real app, these would come from actual API connection status
+  const integrations: IntegrationStatus[] = [
+    {
+      id: 'gmail',
+      name: 'Gmail',
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
+        </svg>
+      ),
+      status: 'connected',
+      lastSync: '2 min ago',
+      color: '#ea4335'
+    },
+    {
+      id: 'outlook',
+      name: 'Outlook',
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M7.88 12.04q0 .45-.11.87-.1.41-.33.74-.22.33-.58.52-.37.2-.87.2t-.85-.2q-.35-.21-.57-.55-.22-.33-.33-.75-.1-.42-.1-.86t.1-.87q.1-.43.34-.76.22-.34.59-.54.36-.2.87-.2t.86.2q.35.21.57.55.22.34.31.77.1.43.1.88zM24 12v9.38q0 .46-.33.8-.33.32-.8.32H7.13q-.46 0-.8-.33-.32-.33-.32-.8V18H1q-.41 0-.7-.3-.3-.29-.3-.7V7q0-.41.3-.7Q.58 6 1 6h6.5V2.55q0-.44.3-.75.3-.3.75-.3h12.9q.44 0 .75.3.3.3.3.75v2.65h.9q.44 0 .75.3.3.31.3.75V8.1h-5.4v9.85h5.4zm-9.48 0q0-.92-.26-1.61-.26-.69-.74-1.15-.48-.46-1.14-.7-.65-.25-1.4-.25-.76 0-1.42.26-.65.26-1.13.74-.48.49-.76 1.18-.28.7-.28 1.55 0 .88.27 1.57.27.69.75 1.16.48.47 1.14.71.65.24 1.42.24.78 0 1.44-.26.66-.27 1.14-.75.48-.49.74-1.17.27-.68.27-1.52zM24 6h-.9v-.55q0-.44-.3-.75-.31-.3-.75-.3H8.55q-.44 0-.75.3-.3.31-.3.75V6H6V3q0-.13.1-.23.1-.1.23-.1h16.33q.14 0 .24.1.1.1.1.23z"/>
+        </svg>
+      ),
+      status: 'connected',
+      lastSync: '5 min ago',
+      color: '#0078d4'
+    },
+    {
+      id: 'slack',
+      name: 'Slack',
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+        </svg>
+      ),
+      status: 'connected',
+      lastSync: '1 min ago',
+      color: '#4a154b'
+    },
+    {
+      id: 'asana',
+      name: 'Asana',
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M18.78 12.653c-2.187 0-3.96 1.773-3.96 3.96s1.773 3.96 3.96 3.96 3.96-1.773 3.96-3.96-1.773-3.96-3.96-3.96zm-13.56 0c-2.187 0-3.96 1.773-3.96 3.96s1.773 3.96 3.96 3.96 3.96-1.773 3.96-3.96-1.773-3.96-3.96-3.96zM12 3.427c-2.187 0-3.96 1.773-3.96 3.96s1.773 3.96 3.96 3.96 3.96-1.773 3.96-3.96-1.773-3.96-3.96-3.96z"/>
+        </svg>
+      ),
+      status: 'connected',
+      lastSync: '3 min ago',
+      color: '#f06a6a'
+    },
+    {
+      id: 'notion',
+      name: 'Notion',
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.98-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.934-.56.934-1.166V6.354c0-.606-.233-.933-.746-.886l-15.177.887c-.56.046-.748.326-.748.933zm14.337.745c.093.42 0 .84-.42.887l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.953l1.448.327s0 .84-1.168.84l-3.222.187c-.093-.187 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.14c-.093-.513.28-.886.747-.933zM2.591 1.247L16.02.16c1.681-.14 2.1.093 2.802.607l3.876 2.753c.466.326.606.42.606 1.027v15.214c0 .98-.373 1.54-1.681 1.633l-15.455.94c-.98.046-1.448-.094-1.962-.747L1.517 18.56c-.467-.653-.7-1.166-.7-1.82V2.693c0-.793.373-1.4 1.774-1.446z"/>
+        </svg>
+      ),
+      status: 'disconnected',
+      color: '#000000'
+    },
+    {
+      id: 'gcal',
+      name: 'Google Calendar',
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M19.5 3h-3V1.5h-1.5V3h-6V1.5H7.5V3h-3C3.675 3 3 3.675 3 4.5v15c0 .825.675 1.5 1.5 1.5h15c.825 0 1.5-.675 1.5-1.5v-15c0-.825-.675-1.5-1.5-1.5zm0 16.5h-15V8.25h15v11.25zM7.5 10.5h3v3h-3zm4.5 0h3v3h-3zm4.5 0h3v3h-3z"/>
+        </svg>
+      ),
+      status: 'connected',
+      lastSync: '1 min ago',
+      color: '#4285f4'
+    }
+  ]
+
+  const connectedCount = integrations.filter(i => i.status === 'connected').length
+  const totalCount = integrations.length
+
+  const getStatusIcon = (status: IntegrationStatus['status']) => {
+    switch (status) {
+      case 'connected':
+        return <CheckCircle size={12} className="status-icon connected" />
+      case 'error':
+        return <AlertCircle size={12} className="status-icon error" />
+      default:
+        return <AlertCircle size={12} className="status-icon disconnected" />
+    }
+  }
+
+  return (
+    <div className={`integrations-panel ${expanded ? 'expanded' : ''}`}>
+      <button className="integrations-header" onClick={() => setExpanded(!expanded)}>
+        <div className="integrations-header-left">
+          <Link2 size={14} />
+          <span className="integrations-title">Integrations</span>
+          <span className="integrations-count">{connectedCount}/{totalCount} connected</span>
+        </div>
+        <ChevronDown size={16} className={`integrations-chevron ${expanded ? 'rotated' : ''}`} />
+      </button>
+
+      {expanded && (
+        <div className="integrations-list">
+          {integrations.map(integration => (
+            <div key={integration.id} className={`integration-item ${integration.status}`}>
+              <div className="integration-icon" style={{ color: integration.color }}>
+                {integration.icon}
+              </div>
+              <div className="integration-info">
+                <span className="integration-name">{integration.name}</span>
+                {integration.lastSync && (
+                  <span className="integration-sync">Synced {integration.lastSync}</span>
+                )}
+                {integration.status === 'disconnected' && (
+                  <span className="integration-sync disconnected">Not connected</span>
+                )}
+              </div>
+              <div className="integration-status">
+                {getStatusIcon(integration.status)}
+              </div>
+              {integration.status === 'disconnected' && (
+                <button className="integration-connect-btn">
+                  Connect
+                </button>
+              )}
+              {integration.status === 'connected' && (
+                <button className="integration-settings-btn">
+                  <Settings size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+          <div className="integrations-footer">
+            <a href="https://doju.ai/integrations" target="_blank" rel="noopener noreferrer" className="add-integration-btn">
+              <Plus size={14} />
+              <span>Add Integration</span>
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const DojuLogo = ({ dark }: { dark: boolean }) => (
   <svg width="20" height="20" viewBox="0 0 382.87 382.87" fill={dark ? '#ffffff' : '#141414'}>
     <rect x="151.7" y="7.91" width="79.46" height="79.46" rx="8.06" ry="8.06"/>
@@ -711,8 +898,67 @@ const MeetingCard = ({ meeting, style, isNow, isPast, isMentoring }: {
   isMentoring: boolean;
 }) => {
   const [expanded, setExpanded] = useState(false)
-  const [notes, setNotes] = useState(meeting.description || '')
+  // Load notes from localStorage or fall back to description
+  const storedNotes = loadFromStorage<Record<string, string>>(STORAGE_KEYS.meetingNotes, {})
+  const [notes, setNotes] = useState(storedNotes[meeting.id] || meeting.description || '')
   const displayTitle = meeting.title || meeting.subtitle || 'Untitled Meeting'
+
+  // Save notes to localStorage when they change
+  const handleNotesChange = (newNotes: string) => {
+    setNotes(newNotes)
+    const allNotes = loadFromStorage<Record<string, string>>(STORAGE_KEYS.meetingNotes, {})
+    allNotes[meeting.id] = newNotes
+    saveToStorage(STORAGE_KEYS.meetingNotes, allNotes)
+  }
+
+  // Use a portal to render the modal at the document body level
+  const modalContent = expanded ? (
+    <div className="meeting-modal-overlay" onClick={() => setExpanded(false)}>
+      <div className={`meeting-modal ${isMentoring ? 'mentoring' : ''}`} onClick={(e) => e.stopPropagation()}>
+        <div className="meeting-modal-header">
+          <div className="meeting-modal-time">{meeting.time} - {meeting.endTime} · {meeting.duration}</div>
+          <button className="meeting-modal-close" onClick={() => setExpanded(false)}>
+            <X size={18} />
+          </button>
+        </div>
+        <h3 className="meeting-modal-title">{displayTitle}</h3>
+
+        {meeting.subtitle && meeting.subtitle !== displayTitle && (
+          <div className="meeting-modal-subtitle">{meeting.subtitle}</div>
+        )}
+
+        {meeting.meetingLink && (
+          <a
+            href={meeting.meetingLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="meeting-join-btn"
+          >
+            <Video size={14} />
+            <span>Join Meeting</span>
+          </a>
+        )}
+
+        <div className="meeting-notes-section">
+          <label className="meeting-notes-label">Notes</label>
+          <textarea
+            className="meeting-notes-input"
+            placeholder="Add notes for this meeting..."
+            value={notes}
+            onChange={(e) => handleNotesChange(e.target.value)}
+            rows={4}
+          />
+        </div>
+
+        <div className="meeting-modal-actions">
+          <button className="meeting-action-btn" onClick={() => setExpanded(false)}>
+            <Check size={14} />
+            <span>Done</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null
 
   return (
     <>
@@ -735,55 +981,7 @@ const MeetingCard = ({ meeting, style, isNow, isPast, isMentoring }: {
           </a>
         )}
       </div>
-
-      {/* Expanded meeting modal */}
-      {expanded && (
-        <div className="meeting-modal-overlay" onClick={() => setExpanded(false)}>
-          <div className={`meeting-modal ${isMentoring ? 'mentoring' : ''}`} onClick={(e) => e.stopPropagation()}>
-            <div className="meeting-modal-header">
-              <div className="meeting-modal-time">{meeting.time} - {meeting.endTime} · {meeting.duration}</div>
-              <button className="meeting-modal-close" onClick={() => setExpanded(false)}>
-                <X size={18} />
-              </button>
-            </div>
-            <h3 className="meeting-modal-title">{displayTitle}</h3>
-
-            {meeting.subtitle && meeting.subtitle !== displayTitle && (
-              <div className="meeting-modal-subtitle">{meeting.subtitle}</div>
-            )}
-
-            {meeting.meetingLink && (
-              <a
-                href={meeting.meetingLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="meeting-join-btn"
-              >
-                <Video size={14} />
-                <span>Join Meeting</span>
-              </a>
-            )}
-
-            <div className="meeting-notes-section">
-              <label className="meeting-notes-label">Notes</label>
-              <textarea
-                className="meeting-notes-input"
-                placeholder="Add notes for this meeting..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={4}
-              />
-            </div>
-
-            <div className="meeting-modal-actions">
-              <button className="meeting-action-btn" onClick={() => setExpanded(false)}>
-                <Check size={14} />
-                <span>Done</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {typeof document !== 'undefined' && ReactDOM.createPortal(modalContent, document.body)}
     </>
   )
 }
@@ -793,6 +991,7 @@ const DayTimeline = ({ meetings }: { meetings: AgendaItem[] }) => {
   const END_HOUR = 20
   const HOUR_HEIGHT = 50 // pixels per hour
   const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * HOUR_HEIGHT
+  const calendarRef = React.useRef<HTMLDivElement>(null)
 
   const now = new Date()
   const currentHour = now.getHours()
@@ -801,6 +1000,18 @@ const DayTimeline = ({ meetings }: { meetings: AgendaItem[] }) => {
   // Current time position
   const currentTimeOffset = ((currentHour - START_HOUR) * 60 + currentMinute) * (HOUR_HEIGHT / 60)
   const showCurrentTime = currentHour >= START_HOUR && currentHour < END_HOUR
+
+  // Auto-scroll to current time on mount
+  useEffect(() => {
+    if (showCurrentTime && calendarRef.current) {
+      const scrollContainer = calendarRef.current.parentElement
+      if (scrollContainer) {
+        // Scroll so current time is near the top with some padding
+        const scrollTarget = Math.max(0, currentTimeOffset - 60)
+        scrollContainer.scrollTop = scrollTarget
+      }
+    }
+  }, [])
 
   // Hour labels
   const hours = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => {
@@ -838,7 +1049,7 @@ const DayTimeline = ({ meetings }: { meetings: AgendaItem[] }) => {
           </div>
         ))}
       </div>
-      <div className="calendar-track" style={{ height: TOTAL_HEIGHT }}>
+      <div ref={calendarRef} className="calendar-track" style={{ height: TOTAL_HEIGHT }}>
         {/* Hour grid lines */}
         {hours.map((_, i) => (
           <div key={i} className="calendar-grid-line" style={{ top: i * HOUR_HEIGHT }} />
@@ -916,7 +1127,7 @@ const isHumanEmail = (message: AgendaItem): boolean => {
   return true
 }
 
-const getRecommendedAction = (message: AgendaItem): { action: string; label: string; icon: 'delete' | 'reply' | 'unsubscribe' | 'archive' | 'review' } => {
+export const getRecommendedAction = (message: AgendaItem): { action: string; label: string; icon: 'delete' | 'reply' | 'unsubscribe' | 'archive' | 'review' } => {
   const content = `${message.title} ${message.description || ''}`.toLowerCase()
 
   // Unsubscribe patterns
@@ -948,7 +1159,7 @@ const getRecommendedAction = (message: AgendaItem): { action: string; label: str
 }
 
 // Message Item Component - Different styling from tasks
-const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; onArchive: (id: string) => void; onDismiss: (id: string) => void }) => {
+const MessageItem = ({ message, onArchive, onDismiss: _onDismiss }: { message: AgendaItem; onArchive: (id: string) => void; onDismiss: (id: string) => void }) => {
   const [expanded, setExpanded] = useState(false)
   const [showAIReply, setShowAIReply] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -958,7 +1169,6 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
   const isAnyEmail = isEmail || isOutlook
   const showAIReplyOption = isAnyEmail && isHumanEmail(message)
 
-  const recommendedAction = getRecommendedAction(message)
 
   const handleCopyReply = () => {
     navigator.clipboard.writeText(generateAIReply(message))
@@ -975,7 +1185,7 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
 
   // Get email URL
   const getEmailUrl = () => {
-    return message.type === 'gmail' || message.source === 'gmail'
+    return message.source === 'gmail' || message.type === 'email'
       ? `https://mail.google.com/mail/u/0/#inbox/${message.id}`
       : `https://outlook.live.com/mail/0/inbox/id/${message.id}`
   }
@@ -1008,44 +1218,6 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
         <div className="message-card-expand">
           <ChevronDown className={expanded ? 'rotated' : ''} size={16} />
         </div>
-      </div>
-
-      {/* Primary action row */}
-      <div className="message-card-action">
-        {isAnyEmail && (
-          recommendedAction.icon === 'reply' ? (
-            <button className="message-action-btn primary" onClick={() => { setExpanded(true); setShowAIReply(true); }}>
-              <Reply size={12} />
-              <span>Reply</span>
-            </button>
-          ) : recommendedAction.icon === 'unsubscribe' ? (
-            <a href={getEmailUrl()} target="_blank" rel="noopener noreferrer" className="message-action-btn">
-              <ExternalLink size={12} />
-              <span>Unsubscribe</span>
-            </a>
-          ) : recommendedAction.icon === 'archive' ? (
-            <button className="message-action-btn" onClick={() => onArchive(message.id)}>
-              <Archive size={12} />
-              <span>Archive</span>
-            </button>
-          ) : recommendedAction.icon === 'delete' ? (
-            <button className="message-action-btn" onClick={() => onArchive(message.id)}>
-              <Archive size={12} />
-              <span>Archive</span>
-            </button>
-          ) : (
-            <button className="message-action-btn" onClick={() => setExpanded(true)}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
-              <span>Review</span>
-            </button>
-          )
-        )}
-        {isSlack && (
-          <button className="message-action-btn primary" onClick={() => setExpanded(true)}>
-            <Reply size={12} />
-            <span>Reply</span>
-          </button>
-        )}
       </div>
 
       {/* Expanded view */}
@@ -1090,7 +1262,7 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
               <div className="ai-reply-actions">
                 <button className="ai-reply-btn" onClick={handleCopyReply}><Copy size={10} /><span>{copied ? 'Copied!' : 'Copy'}</span></button>
                 <a href={getEmailUrl()} className="ai-reply-btn primary" target="_blank" rel="noopener noreferrer">
-                  <ExternalLink size={10} /><span>Reply in {message.type === 'gmail' || message.source === 'gmail' ? 'Gmail' : 'Outlook'}</span>
+                  <ExternalLink size={10} /><span>Reply in {message.source === 'gmail' || message.type === 'email' ? 'Gmail' : 'Outlook'}</span>
                 </a>
               </div>
             </div>
@@ -1121,6 +1293,24 @@ const TaskItem = ({ item, onComplete, onDismiss, onTogglePriority, onStatusChang
   const [copied, setCopied] = useState(false)
   const isEmail = item.type === 'email'
 
+  // Calculate due date status
+  const getDueDateStatus = () => {
+    if (!item.dueDate) return null
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const dueDate = new Date(item.dueDate)
+    dueDate.setHours(0, 0, 0, 0)
+    const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (diffDays < 0) return { status: 'overdue', label: `${Math.abs(diffDays)}d overdue`, class: 'overdue' }
+    if (diffDays === 0) return { status: 'today', label: 'Due today', class: 'due-today' }
+    if (diffDays === 1) return { status: 'tomorrow', label: 'Due tomorrow', class: 'due-soon' }
+    if (diffDays <= 7) return { status: 'soon', label: `Due in ${diffDays}d`, class: 'due-soon' }
+    return { status: 'later', label: format(dueDate, 'MMM d'), class: '' }
+  }
+
+  const dueDateStatus = getDueDateStatus()
+
   const handleCopyReply = () => {
     navigator.clipboard.writeText(generateAIReply(item))
     setCopied(true)
@@ -1129,11 +1319,14 @@ const TaskItem = ({ item, onComplete, onDismiss, onTogglePriority, onStatusChang
 
   if (minimal) {
     return (
-      <div className={`task-item minimal ${item.isPriority ? 'priority' : ''}`}>
+      <div className={`task-item minimal ${item.isPriority ? 'priority' : ''} ${dueDateStatus?.class || ''}`}>
         <div className="task-main">
           <div className="task-content">
             <div className="task-title">{item.title}</div>
-            <div className="task-subtitle">{item.subtitle}</div>
+            <div className="task-subtitle">
+              {dueDateStatus && <span className={`due-badge ${dueDateStatus.class}`}><Clock size={10} />{dueDateStatus.label}</span>}
+              {!dueDateStatus && item.subtitle}
+            </div>
           </div>
           <button className="action-btn-small complete" onClick={() => onComplete(item.id)} title="Complete">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
@@ -1144,7 +1337,7 @@ const TaskItem = ({ item, onComplete, onDismiss, onTogglePriority, onStatusChang
   }
 
   return (
-    <div className={`task-item ${item.isPriority ? 'priority' : ''} ${isDragging ? 'dragging' : ''}`} draggable={!!onDragStart} onDragStart={onDragStart ? (e) => onDragStart(e, item.id) : undefined} onDragOver={onDragOver} onDrop={onDrop ? (e) => onDrop(e, item.id) : undefined}>
+    <div className={`task-item ${item.isPriority ? 'priority' : ''} ${isDragging ? 'dragging' : ''} ${dueDateStatus?.class || ''}`} draggable={!!onDragStart} onDragStart={onDragStart ? (e) => onDragStart(e, item.id) : undefined} onDragOver={onDragOver} onDrop={onDrop ? (e) => onDrop(e, item.id) : undefined}>
       <div className="task-main" onClick={() => setExpanded(!expanded)}>
         {onDragStart && <div className="drag-handle"><GripVertical size={12} /></div>}
         <button
@@ -1156,7 +1349,10 @@ const TaskItem = ({ item, onComplete, onDismiss, onTogglePriority, onStatusChang
         </button>
         <div className="task-content">
           <div className="task-title">{item.title}</div>
-          <div className="task-subtitle">{item.subtitle}</div>
+          <div className="task-subtitle">
+            {dueDateStatus && <span className={`due-badge ${dueDateStatus.class}`}><Clock size={10} />{dueDateStatus.label}</span>}
+            {item.subtitle && <span>{item.subtitle}</span>}
+          </div>
         </div>
         {item.type === 'task' && (
           <StatusTag status={item.status || 'pending'} onChange={(newStatus) => onStatusChange(item.id, newStatus)} />
@@ -1210,6 +1406,13 @@ const WeekView = ({ weekEvents, selectedDay, onSelectDay }: { weekEvents: DayEve
   const getEventsForDay = (day: Date) => weekEvents.find(d => isSameDay(d.date, day))?.events || []
   const selectedDayEvents = selectedDay ? getEventsForDay(selectedDay) : []
 
+  // Categorize events for color coding
+  const categorizeEvents = (events: AgendaItem[]) => {
+    const meetings = events.filter(e => e.type === 'calendar')
+    const hasMentoring = meetings.some(e => (e.title || '').toLowerCase().includes('mentoring'))
+    return { total: events.length, meetings: meetings.length, hasMentoring }
+  }
+
   return (
     <div className="week-view">
       <div className="week-header">
@@ -1223,14 +1426,31 @@ const WeekView = ({ weekEvents, selectedDay, onSelectDay }: { weekEvents: DayEve
       <div className="week-days">
         {days.map((day) => {
           const dayEvents = getEventsForDay(day)
+          const { total } = categorizeEvents(dayEvents)
           const isSelected = selectedDay && isSameDay(day, selectedDay)
           const isTodayDate = isToday(day)
           return (
-            <div key={day.toISOString()} className={`week-day ${isTodayDate ? 'today' : ''} ${isSelected && !isTodayDate ? 'selected' : ''}`} onClick={() => onSelectDay(day)}>
+            <div
+              key={day.toISOString()}
+              className={`week-day ${isTodayDate ? 'today' : ''} ${isSelected ? 'selected' : ''} ${total > 0 ? 'has-events' : ''}`}
+              onClick={() => onSelectDay(day)}
+            >
               <span className="day-name">{isTodayDate ? 'Today' : format(day, 'EEE')}</span>
               <span className="day-number">{format(day, 'd')}</span>
-              {dayEvents.length > 0 && (
-                <div className="day-event-count">{dayEvents.length}</div>
+              {total > 0 && (
+                <div className="day-event-indicators">
+                  {dayEvents.slice(0, 3).map((event, i) => {
+                    const isMentoring = (event.title || '').toLowerCase().includes('mentoring')
+                    return (
+                      <div
+                        key={i}
+                        className={`event-dot ${isMentoring ? 'mentoring' : ''}`}
+                        title={event.title}
+                      />
+                    )
+                  })}
+                  {total > 3 && <span className="event-more">+{total - 3}</span>}
+                </div>
               )}
             </div>
           )
@@ -1238,21 +1458,27 @@ const WeekView = ({ weekEvents, selectedDay, onSelectDay }: { weekEvents: DayEve
       </div>
       {selectedDay && (
         <div className="day-events-panel">
-          <div className="day-events-header">{isToday(selectedDay) ? 'Today' : format(selectedDay, 'EEEE, MMMM d')}</div>
-          {selectedDayEvents.length > 0 ? selectedDayEvents.map((event) => (
-            <div key={event.id} className="week-event-card">
-              <div className="week-event-time">{event.time}</div>
-              <div className="week-event-details">
-                <div className="week-event-title">{event.title}</div>
-                {event.subtitle && <div className="week-event-subtitle">{event.subtitle}</div>}
+          <div className="day-events-header">
+            <span>{isToday(selectedDay) ? 'Today' : format(selectedDay, 'EEEE, MMMM d')}</span>
+            <span className="event-count">{selectedDayEvents.length} {selectedDayEvents.length === 1 ? 'event' : 'events'}</span>
+          </div>
+          {selectedDayEvents.length > 0 ? selectedDayEvents.map((event) => {
+            const isMentoring = (event.title || '').toLowerCase().includes('mentoring')
+            return (
+              <div key={event.id} className={`week-event-card ${isMentoring ? 'mentoring' : ''}`}>
+                <div className="week-event-time">{event.time}</div>
+                <div className="week-event-details">
+                  <div className="week-event-title">{event.title}</div>
+                  {event.duration && <div className="week-event-duration">{event.duration}</div>}
+                </div>
+                {event.meetingLink && (
+                  <a href={event.meetingLink} target="_blank" rel="noopener noreferrer" className="week-event-join">
+                    <Video size={12} />
+                  </a>
+                )}
               </div>
-              {event.meetingLink && (
-                <a href={event.meetingLink} target="_blank" rel="noopener noreferrer" className="week-event-join">
-                  <Video size={12} />
-                </a>
-              )}
-            </div>
-          )) : <div className="no-events">No events scheduled</div>}
+            )
+          }) : <div className="no-events">No events scheduled</div>}
         </div>
       )}
     </div>
@@ -1405,18 +1631,29 @@ function App() {
   const [showWeekView, setShowWeekView] = useState(false)
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date())
   const [refreshing, setRefreshing] = useState(false)
-  const [completedIds, setCompletedIds] = useState<string[]>([])
-  const [dismissedIds, setDismissedIds] = useState<string[]>([])
-  const [taskOrder, setTaskOrder] = useState<string[]>([])
+
+  // State with localStorage persistence
+  const [completedIds, setCompletedIds] = useState<string[]>(() => loadFromStorage(STORAGE_KEYS.completedIds, []))
+  const [dismissedIds, setDismissedIds] = useState<string[]>(() => loadFromStorage(STORAGE_KEYS.dismissedIds, []))
+  const [taskOrder, setTaskOrder] = useState<string[]>(() => loadFromStorage(STORAGE_KEYS.taskOrder, []))
+  const [customTasks, setCustomTasks] = useState<AgendaItem[]>(() => loadFromStorage(STORAGE_KEYS.customTasks, []))
+  const [taskPriorities, setTaskPriorities] = useState<Record<string, boolean>>(() => loadFromStorage(STORAGE_KEYS.taskPriorities, {}))
+  const [taskStatuses, setTaskStatuses] = useState<Record<string, string>>(() => loadFromStorage(STORAGE_KEYS.taskStatuses, {}))
+
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState(new Date())
   const [newTaskInput, setNewTaskInput] = useState('')
-  const [customTasks, setCustomTasks] = useState<AgendaItem[]>([])
-  const [taskPriorities, setTaskPriorities] = useState<Record<string, boolean>>({})
-  const [taskStatuses, setTaskStatuses] = useState<Record<string, string>>({})
   const [undoHistory, setUndoHistory] = useState<Array<{ type: 'complete' | 'dismiss'; id: string }>>([])
   const [showUndoToast, setShowUndoToast] = useState(false)
   const [taskFilter, setTaskFilter] = useState<'all' | 'complete' | 'deleted' | 'priority'>('all')
+
+  // Persist state to localStorage when they change
+  useEffect(() => { saveToStorage(STORAGE_KEYS.completedIds, completedIds) }, [completedIds])
+  useEffect(() => { saveToStorage(STORAGE_KEYS.dismissedIds, dismissedIds) }, [dismissedIds])
+  useEffect(() => { saveToStorage(STORAGE_KEYS.taskOrder, taskOrder) }, [taskOrder])
+  useEffect(() => { saveToStorage(STORAGE_KEYS.customTasks, customTasks) }, [customTasks])
+  useEffect(() => { saveToStorage(STORAGE_KEYS.taskPriorities, taskPriorities) }, [taskPriorities])
+  useEffect(() => { saveToStorage(STORAGE_KEYS.taskStatuses, taskStatuses) }, [taskStatuses])
 
   // Read Aloud state for word-by-word highlighting
   const [isSpeaking, setIsSpeaking] = useState(false)
@@ -1601,18 +1838,50 @@ function App() {
   const greeting = getGreeting(currentTime.getHours(), userName, getDayOfYear(currentTime))
   const aiSummary = generateAISummary(activeTasks, todayMeetings, activeMessages, completedCount, currentTime.getHours(), userName)
 
+  // Pause state for speech synthesis
+  const [isPaused, setIsPaused] = useState(false)
+
   const handleReadAloud = () => {
-    // If already speaking, stop
-    if (isSpeaking) {
-      speechSynthesis.cancel()
-      setIsSpeaking(false)
-      setSpokenCharIndex(0)
+    // If paused, resume
+    if (isPaused) {
+      speechSynthesis.resume()
+      setIsPaused(false)
+      setIsSpeaking(true)
       return
     }
 
+    // If speaking, pause
+    if (isSpeaking) {
+      speechSynthesis.pause()
+      setIsPaused(true)
+      setIsSpeaking(false)
+      return
+    }
+
+    // Start fresh
+    speechSynthesis.cancel()
+    setSpokenCharIndex(0)
+
     const utterance = new SpeechSynthesisUtterance(aiSummary)
-    utterance.rate = 0.9
+    utterance.rate = 0.95
     utterance.pitch = 1
+
+    // Set English female voice
+    const voices = speechSynthesis.getVoices()
+    const englishFemaleVoice = voices.find(voice =>
+      voice.lang.startsWith('en-GB') && voice.name.toLowerCase().includes('female')
+    ) || voices.find(voice =>
+      voice.lang.startsWith('en-GB')
+    ) || voices.find(voice =>
+      voice.lang.startsWith('en') && voice.name.toLowerCase().includes('female')
+    ) || voices.find(voice =>
+      voice.name.includes('Samantha') || voice.name.includes('Karen') ||
+      voice.name.includes('Moira') || voice.name.includes('Fiona') ||
+      voice.name.includes('Google UK English Female')
+    )
+    if (englishFemaleVoice) {
+      utterance.voice = englishFemaleVoice
+    }
 
     // Track word boundaries as speech progresses
     utterance.onboundary = (event) => {
@@ -1623,21 +1892,32 @@ function App() {
 
     utterance.onstart = () => {
       setIsSpeaking(true)
+      setIsPaused(false)
       setSpokenCharIndex(0)
     }
 
     utterance.onend = () => {
       setIsSpeaking(false)
+      setIsPaused(false)
       // Keep the text white (fully highlighted) after finishing
       setSpokenCharIndex(aiSummary.length)
     }
 
     utterance.onerror = () => {
       setIsSpeaking(false)
+      setIsPaused(false)
       setSpokenCharIndex(0)
     }
 
     speechSynthesis.speak(utterance)
+  }
+
+  // Stop speech completely
+  const handleStopSpeech = () => {
+    speechSynthesis.cancel()
+    setIsSpeaking(false)
+    setIsPaused(false)
+    setSpokenCharIndex(0)
   }
 
   // Show loading state
@@ -1677,7 +1957,6 @@ function App() {
       <header className="header">
         <div className="header-top">
           <div className="header-left">
-            <WeatherIcon condition={weather.condition} />
             <MapPin size={12} />
             <span>{weather.location}</span>
             <span className="weather-divider">·</span>
@@ -1718,10 +1997,16 @@ function App() {
           <div className="summary-footer">
             <span className="last-updated">Last updated: {format(lastUpdated, 'h:mm a').toLowerCase()}</span>
             <div className="summary-actions">
-              <button className={`summary-btn ${isSpeaking ? 'active' : ''}`} onClick={handleReadAloud}>
-                {isSpeaking ? <Pause size={14} /> : <Volume2 size={14} />}
-                <span>{isSpeaking ? 'Stop' : 'Read Aloud'}</span>
+              <button className={`summary-btn ${isSpeaking || isPaused ? 'active' : ''}`} onClick={handleReadAloud}>
+                {isSpeaking ? <Pause size={14} /> : isPaused ? <Play size={14} /> : <Volume2 size={14} />}
+                <span>{isSpeaking ? 'Pause' : isPaused ? 'Resume' : 'Read Aloud'}</span>
               </button>
+              {(isSpeaking || isPaused) && (
+                <button className="summary-btn stop" onClick={handleStopSpeech}>
+                  <X size={14} />
+                  <span>Stop</span>
+                </button>
+              )}
               <button className="summary-btn" onClick={handleRefresh}>
                 <RefreshCw size={14} />
                 <span>Refresh</span>
@@ -1876,6 +2161,9 @@ function App() {
           </svg>
         </a>
       </div>
+
+      {/* Integrations Panel */}
+      <IntegrationsPanel />
 
       <footer className="footer">
         <DojuLogo dark={darkMode} />
