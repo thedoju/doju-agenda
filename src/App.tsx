@@ -790,29 +790,43 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
           <div className="message-title">{message.title}</div>
           <div className="message-subtitle">{message.subtitle}</div>
           {isAnyEmail && (
-            <button
-              className={`recommended-action ${recommendedAction.icon}`}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (recommendedAction.icon === 'delete' || recommendedAction.icon === 'unsubscribe') {
-                  onDismiss(message.id)
-                } else if (recommendedAction.icon === 'archive') {
-                  onArchive(message.id)
-                } else if (recommendedAction.icon === 'reply') {
-                  setExpanded(true)
-                  setShowAIReply(true)
-                } else if (recommendedAction.icon === 'review') {
-                  setExpanded(true)
-                }
-              }}
-            >
-              {recommendedAction.icon === 'delete' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>}
-              {recommendedAction.icon === 'reply' && <Reply size={10} />}
-              {recommendedAction.icon === 'unsubscribe' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64A9 9 0 115.64 18.36M12 2v10"/></svg>}
-              {recommendedAction.icon === 'archive' && <Archive size={10} />}
-              {recommendedAction.icon === 'review' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>}
-              <span>{recommendedAction.label}</span>
-            </button>
+            recommendedAction.icon === 'unsubscribe' ? (
+              <a
+                href={message.type === 'gmail' || message.source === 'gmail'
+                  ? `https://mail.google.com/mail/u/0/#inbox/${message.id}`
+                  : `https://outlook.live.com/mail/0/inbox/id/${message.id}`}
+                className={`recommended-action ${recommendedAction.icon}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink size={10} />
+                <span>Unsubscribe</span>
+              </a>
+            ) : (
+              <button
+                className={`recommended-action ${recommendedAction.icon}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (recommendedAction.icon === 'delete') {
+                    onDismiss(message.id)
+                  } else if (recommendedAction.icon === 'archive') {
+                    onArchive(message.id)
+                  } else if (recommendedAction.icon === 'reply') {
+                    setExpanded(true)
+                    setShowAIReply(true)
+                  } else if (recommendedAction.icon === 'review') {
+                    setExpanded(true)
+                  }
+                }}
+              >
+                {recommendedAction.icon === 'delete' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>}
+                {recommendedAction.icon === 'reply' && <Reply size={10} />}
+                {recommendedAction.icon === 'archive' && <Archive size={10} />}
+                {recommendedAction.icon === 'review' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>}
+                <span>{recommendedAction.label}</span>
+              </button>
+            )
           )}
         </div>
         <div className="message-actions">
@@ -981,38 +995,57 @@ const TaskItem = ({ item, onComplete, onDismiss, onTogglePriority, onStatusChang
   )
 }
 
-// Week View
+// Week View - starts from today
 const WeekView = ({ weekEvents, selectedDay, onSelectDay }: { weekEvents: DayEvents[]; selectedDay: Date | null; onSelectDay: (day: Date) => void }) => {
-  const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const today = new Date()
+  const [startOffset, setStartOffset] = useState(0) // 0 = today, 7 = next week, -7 = last week
+  const startDate = addDays(today, startOffset)
+  const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i))
   const getEventsForDay = (day: Date) => weekEvents.find(d => isSameDay(d.date, day))?.events || []
   const selectedDayEvents = selectedDay ? getEventsForDay(selectedDay) : []
 
   return (
     <div className="week-view">
       <div className="week-header">
-        <button className="week-nav" onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft size={14} /></button>
-        <span className="week-title">{format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d, yyyy')}</span>
-        <button className="week-nav" onClick={() => setWeekStart(addDays(weekStart, 7))}><ChevronRight size={14} /></button>
+        <button className="week-nav" onClick={() => setStartOffset(startOffset - 7)}><ChevronLeft size={14} /></button>
+        <span className="week-title">
+          {startOffset === 0 ? 'This Week' : startOffset === 7 ? 'Next Week' : startOffset === -7 ? 'Last Week' : format(startDate, 'MMM d')}
+          {startOffset !== 0 && startOffset !== 7 && startOffset !== -7 && ` - ${format(addDays(startDate, 6), 'MMM d')}`}
+        </span>
+        <button className="week-nav" onClick={() => setStartOffset(startOffset + 7)}><ChevronRight size={14} /></button>
       </div>
       <div className="week-days">
         {days.map((day) => {
           const dayEvents = getEventsForDay(day)
           const isSelected = selectedDay && isSameDay(day, selectedDay)
+          const isTodayDate = isToday(day)
           return (
-            <div key={day.toISOString()} className={`week-day ${isToday(day) ? 'today' : ''} ${isSelected && !isToday(day) ? 'selected' : ''}`} onClick={() => onSelectDay(day)}>
-              <span className="day-name">{format(day, 'EEE')}</span>
+            <div key={day.toISOString()} className={`week-day ${isTodayDate ? 'today' : ''} ${isSelected && !isTodayDate ? 'selected' : ''}`} onClick={() => onSelectDay(day)}>
+              <span className="day-name">{isTodayDate ? 'Today' : format(day, 'EEE')}</span>
               <span className="day-number">{format(day, 'd')}</span>
-              {dayEvents.length > 0 && <div className="day-dots">{dayEvents.slice(0, 3).map((_, i) => <div key={i} className="day-dot" />)}</div>}
+              {dayEvents.length > 0 && (
+                <div className="day-event-count">{dayEvents.length}</div>
+              )}
             </div>
           )
         })}
       </div>
       {selectedDay && (
         <div className="day-events-panel">
-          <div className="day-events-header">{format(selectedDay, 'EEEE, MMMM d')}</div>
+          <div className="day-events-header">{isToday(selectedDay) ? 'Today' : format(selectedDay, 'EEEE, MMMM d')}</div>
           {selectedDayEvents.length > 0 ? selectedDayEvents.map((event) => (
-            <MeetingItem key={event.id} meeting={event} />
+            <div key={event.id} className="week-event-card">
+              <div className="week-event-time">{event.time}</div>
+              <div className="week-event-details">
+                <div className="week-event-title">{event.title}</div>
+                {event.subtitle && <div className="week-event-subtitle">{event.subtitle}</div>}
+              </div>
+              {event.meetingLink && (
+                <a href={event.meetingLink} target="_blank" rel="noopener noreferrer" className="week-event-join">
+                  <Video size={12} />
+                </a>
+              )}
+            </div>
           )) : <div className="no-events">No events scheduled</div>}
         </div>
       )}
