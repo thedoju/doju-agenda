@@ -1335,8 +1335,13 @@ function App() {
     return (
       <div className="app">
         <div className="loading-state">
-          <RefreshCw className="spinning" size={24} />
-          <span>Loading your agenda...</span>
+          <div className="loading-dots">
+            <span className="dot"></span>
+            <span className="dot"></span>
+            <span className="dot"></span>
+            <span className="dot"></span>
+          </div>
+          <span>Loading your Daily Doju</span>
         </div>
       </div>
     )
