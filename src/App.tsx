@@ -78,7 +78,7 @@ import './App.css'
 })()
 
 // n8n Webhook URL for fetching real data
-const N8N_WEBHOOK_URL = 'https://doju.app.n8n.cloud/webhook/doju-daily'
+const N8N_WEBHOOK_URL = 'https://doju.app.n8n.cloud/webhook/daily-agenda'
 
 interface AgendaItem {
   id: string
