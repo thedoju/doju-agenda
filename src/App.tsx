@@ -1341,7 +1341,7 @@ function App() {
             <span className="dot"></span>
             <span className="dot"></span>
           </div>
-          <span>Loading your Daily Doju</span>
+          <span>Loading your Daily Doju...</span>
         </div>
       </div>
     )
