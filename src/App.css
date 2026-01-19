@@ -1522,126 +1522,186 @@ body.light-mode .action-btn-small.complete {
   color: var(--text-primary);
 }
 
-/* Meeting Card - Timeline Style */
+/* Day Timeline - Visual Calendar */
 .meetings-timeline {
   margin-bottom: 24px;
 }
 
-.meetings-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-}
-
-.meetings-list {
+.day-timeline {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.meeting-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 16px;
+  gap: 12px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  transition: all 0.2s;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 12px;
 }
 
-.meeting-card:hover {
-  background: var(--bg-hover);
+.timeline-hours {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0;
+  min-width: 40px;
 }
 
-.meeting-card.now {
-  border-color: var(--priority);
-  border-left: 3px solid var(--priority);
+.timeline-hour-label {
+  font-family: 'Orpix', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: right;
+  line-height: 1;
 }
 
-.meeting-card.past {
+.timeline-track {
+  flex: 1;
+  position: relative;
+  min-height: 360px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.timeline-grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border);
+}
+
+.timeline-grid-line.major {
+  background: var(--border);
+}
+
+.timeline-grid-line.minor {
+  background: var(--border);
   opacity: 0.5;
 }
 
-.meeting-time-block {
+/* Current time indicator */
+.timeline-now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 10;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  min-width: 50px;
-  gap: 2px;
 }
 
-.meeting-start {
-  font-family: 'Orpix', monospace;
-  font-size: 14px;
-  color: var(--text-primary);
+.timeline-now-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--priority);
+  border-radius: 50%;
+  margin-left: -4px;
+  box-shadow: 0 0 8px var(--priority);
 }
 
-.meeting-end {
-  font-family: 'Orpix', monospace;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.meeting-info {
+.timeline-now-line {
   flex: 1;
-  min-width: 0;
+  height: 2px;
+  background: var(--priority);
+  opacity: 0.8;
 }
 
-.meeting-card .meeting-title {
-  font-size: 14px;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.meeting-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.meeting-card .meeting-subtitle {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.meeting-duration {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.meeting-duration svg {
-  color: var(--text-muted);
-}
-
-.meeting-join-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+/* Meeting blocks */
+.timeline-meeting {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  background: var(--bg-hover);
+  border-left: 3px solid var(--text-muted);
   border-radius: 6px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-decoration: none;
+  padding: 8px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  overflow: hidden;
   transition: all 0.2s;
   cursor: pointer;
 }
 
-.meeting-join-btn:hover {
+.timeline-meeting:hover {
+  background: var(--border);
+}
+
+.timeline-meeting.now {
+  border-left-color: var(--priority);
+  background: rgba(252, 212, 67, 0.1);
+}
+
+.timeline-meeting.past {
+  opacity: 0.5;
+}
+
+.timeline-meeting-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.timeline-meeting-time {
+  font-family: 'Orpix', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.timeline-meeting-duration {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.timeline-meeting-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-meeting-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.timeline-join-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.timeline-join-btn:hover {
   background: var(--text-primary);
   border-color: var(--text-primary);
   color: var(--bg-primary);
 }
 
-.meeting-join-btn svg {
-  flex-shrink: 0;
+/* Empty state for timeline */
+.timeline-track:empty::after {
+  content: 'No meetings today';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 /* Message Item - Different from Task Item */
