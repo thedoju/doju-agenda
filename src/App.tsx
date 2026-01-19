@@ -527,10 +527,49 @@ const DojuLogo = ({ dark }: { dark: boolean }) => (
   </svg>
 )
 
-// AI Reply Generator
+// AI Reply Generator - analyzes full email content for context-aware replies
 const generateAIReply = (item: AgendaItem): string => {
-  if (item.title.includes('Invoice')) return `Hi,\n\nThanks for following up. I'll send through the updated invoice with revised payment terms by end of day tomorrow.\n\nBest,\nOliver`
-  if (item.title.includes('Project Inquiry')) return `Hi,\n\nThank you for reaching out! I'd love to hear more about your project. I'm available for a call next Tuesday or Wednesday afternoon.\n\nBest,\nOliver`
+  const content = `${item.title} ${item.description || ''}`.toLowerCase()
+  const senderMatch = item.subtitle?.match(/From (.+)/i)
+  const senderName = senderMatch ? senderMatch[1].split('@')[0].split(' ')[0] : ''
+  const greeting = senderName && senderName !== 'Unknown' ? `Hi ${senderName},` : 'Hi,'
+
+  // Invoice/Payment related
+  if (content.includes('invoice') || content.includes('payment') || content.includes('receipt')) {
+    if (content.includes('overdue') || content.includes('reminder')) {
+      return `${greeting}\n\nApologies for the delay. I'll process this payment today and send confirmation once complete.\n\nBest,\nOliver`
+    }
+    return `${greeting}\n\nThanks for sending this through. I've reviewed the invoice and will process payment within the next 48 hours.\n\nBest,\nOliver`
+  }
+
+  // Meeting/Schedule related
+  if (content.includes('meeting') || content.includes('schedule') || content.includes('call') || content.includes('available')) {
+    if (content.includes('reschedule') || content.includes('cancel')) {
+      return `${greeting}\n\nNo problem at all. Let me know what times work better for you and I'll adjust my calendar.\n\nBest,\nOliver`
+    }
+    return `${greeting}\n\nThanks for reaching out. I'm available this week - would Tuesday or Thursday afternoon work for you?\n\nBest,\nOliver`
+  }
+
+  // Project/Work inquiry
+  if (content.includes('project') || content.includes('quote') || content.includes('proposal') || content.includes('work')) {
+    return `${greeting}\n\nThank you for reaching out! I'd love to learn more about your project. Could you share a brief overview of what you're looking for? I'm available for a discovery call this week if that would help.\n\nBest,\nOliver`
+  }
+
+  // Question/Help request
+  if (content.includes('?') || content.includes('help') || content.includes('question') || content.includes('how')) {
+    return `${greeting}\n\nThanks for your message. I'll look into this and get back to you with a detailed response shortly.\n\nBest,\nOliver`
+  }
+
+  // Feedback/Review
+  if (content.includes('feedback') || content.includes('review') || content.includes('thoughts')) {
+    return `${greeting}\n\nThanks for sharing this. I'll review everything carefully and send my feedback by end of day tomorrow.\n\nBest,\nOliver`
+  }
+
+  // Default - personalized if we have sender name
+  if (senderName && senderName !== 'Unknown') {
+    return `${greeting}\n\nThanks for your message. I'll review this and get back to you shortly.\n\nBest,\nOliver`
+  }
+
   return `Hi,\n\nThanks for your message. I'll get back to you shortly.\n\nBest,\nOliver`
 }
 
@@ -689,14 +728,29 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
           <div className="message-title">{message.title}</div>
           <div className="message-subtitle">{message.subtitle}</div>
           {isAnyEmail && (
-            <div className={`recommended-action ${recommendedAction.icon}`}>
+            <button
+              className={`recommended-action ${recommendedAction.icon}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (recommendedAction.icon === 'delete' || recommendedAction.icon === 'unsubscribe') {
+                  onDismiss(message.id)
+                } else if (recommendedAction.icon === 'archive') {
+                  onArchive(message.id)
+                } else if (recommendedAction.icon === 'reply') {
+                  setExpanded(true)
+                  setShowAIReply(true)
+                } else if (recommendedAction.icon === 'review') {
+                  setExpanded(true)
+                }
+              }}
+            >
               {recommendedAction.icon === 'delete' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>}
               {recommendedAction.icon === 'reply' && <Reply size={10} />}
               {recommendedAction.icon === 'unsubscribe' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64A9 9 0 115.64 18.36M12 2v10"/></svg>}
               {recommendedAction.icon === 'archive' && <Archive size={10} />}
               {recommendedAction.icon === 'review' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>}
               <span>{recommendedAction.label}</span>
-            </div>
+            </button>
           )}
         </div>
         <div className="message-actions">
@@ -711,6 +765,9 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
       </div>
       {expanded && (
         <div className="message-expanded">
+          <button className="message-close-btn" onClick={(e) => { e.stopPropagation(); setExpanded(false); setShowAIReply(false); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
           {message.description && <div className="message-description">{message.description}</div>}
           <div className="quick-actions">
             {isAnyEmail && (
@@ -718,6 +775,7 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
                 <button className="quick-action" onClick={() => setShowAIReply(!showAIReply)}><Sparkles size={10} /><span>AI Reply</span></button>
                 <button className="quick-action"><Reply size={10} /><span>Reply</span></button>
                 <button className="quick-action" onClick={() => onArchive(message.id)}><Archive size={10} /><span>Archive</span></button>
+                <button className="quick-action delete" onClick={() => onDismiss(message.id)}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg><span>Delete</span></button>
               </>
             )}
             {isSlack && (
