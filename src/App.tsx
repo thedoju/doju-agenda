@@ -773,7 +773,16 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
             {isAnyEmail && (
               <>
                 <button className="quick-action" onClick={() => setShowAIReply(!showAIReply)}><Sparkles size={10} /><span>AI Reply</span></button>
-                <button className="quick-action"><Reply size={10} /><span>Reply</span></button>
+                <a
+                  href={message.type === 'gmail' || message.source === 'gmail'
+                    ? `https://mail.google.com/mail/u/0/#inbox/${message.id}`
+                    : `https://outlook.live.com/mail/0/inbox/id/${message.id}`}
+                  className="quick-action primary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink size={10} /><span>Reply in {message.type === 'gmail' || message.source === 'gmail' ? 'Gmail' : 'Outlook'}</span>
+                </a>
                 <button className="quick-action" onClick={() => onArchive(message.id)}><Archive size={10} /><span>Archive</span></button>
                 <button className="quick-action delete" onClick={() => onDismiss(message.id)}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg><span>Delete</span></button>
               </>

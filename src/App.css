@@ -1254,6 +1254,16 @@ body.light-mode .action-btn.complete {
   border-color: var(--text-muted);
 }
 
+.quick-action.primary {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border-color: var(--text-primary);
+}
+
+.quick-action.primary:hover {
+  opacity: 0.9;
+}
+
 /* AI Reply Section */
 .ai-reply-section {
   margin-top: 16px;
