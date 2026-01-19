@@ -35,21 +35,29 @@ import './App.css'
 .progress-pills { display: flex !important; gap: 4px; }
 .progress-pill { flex: 1; height: 6px !important; border-radius: 3px; background: var(--bg-hover, #222222); }
 .progress-pill.filled { background: var(--priority, #FCD443) !important; }
-.day-timeline-list { display: flex; flex-direction: column; gap: 0; margin-top: 12px; }
-.day-timeline-empty { display: flex; flex-direction: column; align-items: center; padding: 48px 24px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; margin-top: 12px; }
-.timeline-gap { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
-.timeline-gap-line { flex: 1; height: 1px; background: var(--border); }
-.timeline-gap-text { font-size: 11px; color: var(--success); background: var(--bg-secondary); padding: 4px 10px; border-radius: 12px; border: 1px solid var(--border); }
-.timeline-meeting-card { display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; border-left: 4px solid var(--text-muted); }
-.timeline-meeting-card.now { border-left-color: var(--priority); background: rgba(252, 212, 67, 0.08); }
-.timeline-meeting-card.past { opacity: 0.5; }
-.timeline-meeting-time-col { display: flex; flex-direction: column; align-items: center; min-width: 50px; gap: 2px; }
-.timeline-time-start { font-size: 14px; color: var(--text-primary); font-weight: 500; }
-.timeline-time-duration { font-size: 11px; color: var(--text-muted); }
-.timeline-meeting-details { flex: 1; min-width: 0; }
-.timeline-meeting-title { font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
-.timeline-meeting-subtitle { font-size: 12px; color: var(--text-muted); }
-.timeline-join-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-secondary); text-decoration: none; }
+.day-calendar { display: flex; gap: 8px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-top: 12px; }
+.calendar-hours { display: flex; flex-direction: column; min-width: 40px; }
+.calendar-hour-label { font-size: 10px; color: var(--text-muted); }
+.calendar-track { flex: 1; position: relative; background: var(--bg-card); border-radius: 8px; overflow: hidden; }
+.calendar-grid-line { position: absolute; left: 0; right: 0; height: 1px; background: var(--border); opacity: 0.5; }
+.calendar-now { position: absolute; left: 0; right: 0; z-index: 10; display: flex; align-items: center; }
+.calendar-now-dot { width: 8px; height: 8px; background: var(--priority); border-radius: 50%; margin-left: -4px; }
+.calendar-now-line { flex: 1; height: 2px; background: var(--priority); }
+.calendar-meeting { position: absolute; left: 4px; right: 4px; background: var(--bg-hover); border-left: 3px solid var(--text-secondary); border-radius: 4px; padding: 6px 8px; }
+.calendar-meeting.now { border-left-color: var(--priority); background: rgba(252, 212, 67, 0.15); }
+.calendar-meeting.past { opacity: 0.4; }
+.calendar-meeting-time { font-size: 10px; color: var(--text-muted); }
+.calendar-meeting-title { font-size: 12px; color: var(--text-primary); }
+.message-card { background: var(--bg-card); border-radius: 10px; border-left: 3px solid var(--text-muted); }
+.message-card.email { border-left-color: #ea4335; }
+.message-card.outlook { border-left-color: #0078d4; }
+.message-card-main { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.message-card-content { flex: 1; min-width: 0; }
+.message-card-from { font-size: 11px; color: var(--text-muted); }
+.message-card-subject { font-size: 13px; color: var(--text-primary); }
+.message-card-action { padding: 0 14px 12px; }
+.message-action-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; text-decoration: none; }
+.message-action-btn.primary { background: var(--text-primary); color: var(--bg-primary); }
 .task-filter-tabs { display: flex; gap: 4px; margin-bottom: 16px; padding: 4px; background: var(--bg-primary); border-radius: 8px; }
 .filter-tab { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: transparent; border: none; border-radius: 6px; font-size: 12px; font-family: inherit; color: var(--text-muted); cursor: pointer; }
 .filter-tab:hover { color: var(--text-secondary); background: var(--bg-hover); }
@@ -612,98 +620,98 @@ const StatusTag = ({ status, onChange }: { status: string; onChange: (newStatus:
   )
 }
 
-// Day Timeline Component - Visual schedule with time slots
+// Day Timeline Component - Visual 8am-8pm calendar
 const DayTimeline = ({ meetings }: { meetings: AgendaItem[] }) => {
+  const START_HOUR = 8
+  const END_HOUR = 20
+  const HOUR_HEIGHT = 50 // pixels per hour
+  const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * HOUR_HEIGHT
+
   const now = new Date()
   const currentHour = now.getHours()
   const currentMinute = now.getMinutes()
 
-  // Check meeting status
-  const getMeetingStatus = (meeting: AgendaItem) => {
+  // Current time position
+  const currentTimeOffset = ((currentHour - START_HOUR) * 60 + currentMinute) * (HOUR_HEIGHT / 60)
+  const showCurrentTime = currentHour >= START_HOUR && currentHour < END_HOUR
+
+  // Hour labels
+  const hours = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => {
+    const hour = START_HOUR + i
+    return hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`
+  })
+
+  // Calculate meeting position and height
+  const getMeetingStyle = (meeting: AgendaItem) => {
     const [startHour, startMin] = (meeting.time || '08:00').split(':').map(Number)
     const [endHour, endMin] = (meeting.endTime || '09:00').split(':').map(Number)
 
+    const startMinutes = (startHour - START_HOUR) * 60 + startMin
+    const endMinutes = (endHour - START_HOUR) * 60 + endMin
+    const durationMinutes = endMinutes - startMinutes
+
+    const top = startMinutes * (HOUR_HEIGHT / 60)
+    const height = Math.max(durationMinutes * (HOUR_HEIGHT / 60), 40) // minimum 40px
+
+    const nowTotal = currentHour * 60 + currentMinute
     const startTotal = startHour * 60 + startMin
     const endTotal = endHour * 60 + endMin
-    const nowTotal = currentHour * 60 + currentMinute
-
     const isNow = nowTotal >= startTotal && nowTotal < endTotal
     const isPast = nowTotal >= endTotal
 
-    return { isNow, isPast }
-  }
-
-  // Sort meetings by time
-  const sortedMeetings = [...meetings].sort((a, b) => {
-    const timeA = a.time || '00:00'
-    const timeB = b.time || '00:00'
-    return timeA.localeCompare(timeB)
-  })
-
-  // Find gaps between meetings
-  const getGapBefore = (meeting: AgendaItem, index: number) => {
-    if (index === 0) return null
-    const prevMeeting = sortedMeetings[index - 1]
-    const prevEnd = prevMeeting.endTime || '09:00'
-    const currentStart = meeting.time || '08:00'
-
-    const [prevEndHour, prevEndMin] = prevEnd.split(':').map(Number)
-    const [currStartHour, currStartMin] = currentStart.split(':').map(Number)
-
-    const gapMinutes = (currStartHour * 60 + currStartMin) - (prevEndHour * 60 + prevEndMin)
-
-    if (gapMinutes >= 30) {
-      const hours = Math.floor(gapMinutes / 60)
-      const mins = gapMinutes % 60
-      return hours > 0 ? `${hours}h ${mins > 0 ? `${mins}m` : ''} free` : `${mins}m free`
-    }
-    return null
-  }
-
-  if (sortedMeetings.length === 0) {
-    return (
-      <div className="day-timeline-empty">
-        <div className="empty-calendar-icon">📅</div>
-        <div className="empty-calendar-text">No meetings today</div>
-        <div className="empty-calendar-subtext">Your calendar is clear</div>
-      </div>
-    )
+    return { top, height, isNow, isPast }
   }
 
   return (
-    <div className="day-timeline-list">
-      {sortedMeetings.map((meeting, index) => {
-        const { isNow, isPast } = getMeetingStatus(meeting)
-        const gap = getGapBefore(meeting, index)
+    <div className="day-calendar">
+      <div className="calendar-hours">
+        {hours.map((label, i) => (
+          <div key={i} className="calendar-hour-label" style={{ height: HOUR_HEIGHT }}>
+            {label}
+          </div>
+        ))}
+      </div>
+      <div className="calendar-track" style={{ height: TOTAL_HEIGHT }}>
+        {/* Hour grid lines */}
+        {hours.map((_, i) => (
+          <div key={i} className="calendar-grid-line" style={{ top: i * HOUR_HEIGHT }} />
+        ))}
 
-        return (
-          <div key={meeting.id}>
-            {gap && (
-              <div className="timeline-gap">
-                <div className="timeline-gap-line" />
-                <span className="timeline-gap-text">{gap}</span>
-                <div className="timeline-gap-line" />
-              </div>
-            )}
-            <div className={`timeline-meeting-card ${isNow ? 'now' : ''} ${isPast ? 'past' : ''}`}>
-              <div className="timeline-meeting-time-col">
-                <span className="timeline-time-start">{meeting.time}</span>
-                <span className="timeline-time-duration">{meeting.duration}</span>
-              </div>
-              <div className="timeline-meeting-details">
-                <div className="timeline-meeting-title">{meeting.title}</div>
-                {meeting.subtitle && <div className="timeline-meeting-subtitle">{meeting.subtitle}</div>}
-              </div>
+        {/* Current time indicator */}
+        {showCurrentTime && (
+          <div className="calendar-now" style={{ top: currentTimeOffset }}>
+            <div className="calendar-now-dot" />
+            <div className="calendar-now-line" />
+          </div>
+        )}
+
+        {/* Meetings */}
+        {meetings.map(meeting => {
+          const { top, height, isNow, isPast } = getMeetingStyle(meeting)
+          return (
+            <div
+              key={meeting.id}
+              className={`calendar-meeting ${isNow ? 'now' : ''} ${isPast ? 'past' : ''}`}
+              style={{ top, height }}
+            >
+              <div className="calendar-meeting-time">{meeting.time} · {meeting.duration}</div>
+              <div className="calendar-meeting-title">{meeting.title}</div>
               {meeting.meetingLink && (
-                <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer" className="timeline-join-btn">
-                  <Video size={14} />
-                  <span>Join</span>
+                <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer" className="calendar-join">
+                  <Video size={12} /> Join
                 </a>
               )}
             </div>
+          )
+        })}
+
+        {/* Empty state overlay */}
+        {meetings.length === 0 && (
+          <div className="calendar-empty">
+            <span>No meetings today</span>
           </div>
-        )
-      })}
+        )}
+      </div>
     </div>
   )
 }
@@ -765,125 +773,118 @@ const MessageItem = ({ message, onArchive, onDismiss }: { message: AgendaItem; o
     return 'slack'
   }
 
+  // Get email URL
+  const getEmailUrl = () => {
+    return message.type === 'gmail' || message.source === 'gmail'
+      ? `https://mail.google.com/mail/u/0/#inbox/${message.id}`
+      : `https://outlook.live.com/mail/0/inbox/id/${message.id}`
+  }
+
   return (
-    <div className={`message-item ${getIconClass()}`}>
-      <div className="message-main" onClick={() => setExpanded(!expanded)}>
-        <div className="message-icon">
+    <div className={`message-card ${getIconClass()}`}>
+      <div className="message-card-main">
+        <div className="message-card-icon">
           {isEmail ? (
-            // Gmail icon
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
             </svg>
           ) : isOutlook ? (
-            // Outlook icon
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M24 7.387v10.478c0 .23-.08.424-.238.576-.158.154-.352.23-.58.23h-8.547v-6.959l1.6 1.229c.101.063.222.094.36.094.14 0 .26-.031.361-.094l6.805-5.222c.087-.056.165-.14.234-.248.07-.108.105-.217.105-.326v-.158c0-.2-.07-.359-.21-.477-.14-.118-.298-.177-.472-.177h-.186l-7.037 5.408-1.01-.775V5.25h8.547c.228 0 .422.078.58.232.158.154.238.348.238.576v1.33zM14.635 6.287v12.19c0 .193-.07.357-.21.495-.14.136-.308.204-.508.204H.717c-.2 0-.368-.068-.507-.204a.674.674 0 0 1-.21-.495V6.287c0-.193.07-.358.21-.494.14-.138.308-.206.507-.206h13.2c.2 0 .368.068.508.206.14.136.21.3.21.494zM8.29 15.668c.684-.367 1.21-.888 1.578-1.562.367-.675.55-1.44.55-2.296 0-.858-.183-1.623-.55-2.296-.368-.675-.894-1.195-1.578-1.562-.684-.367-1.45-.55-2.297-.55-.848 0-1.613.183-2.297.55-.684.367-1.21.887-1.578 1.562-.367.673-.55 1.438-.55 2.296 0 .857.183 1.621.55 2.296.368.674.894 1.195 1.578 1.562.684.367 1.45.55 2.297.55.847 0 1.613-.183 2.297-.55zm-3.493-1.216c-.405-.277-.715-.658-.928-1.145-.213-.486-.32-1.03-.32-1.633 0-.602.107-1.147.32-1.633.213-.486.523-.868.928-1.144.405-.277.865-.415 1.378-.415.514 0 .974.138 1.378.415.405.276.715.658.928 1.144.214.486.32 1.03.32 1.633 0 .603-.106 1.147-.32 1.633-.213.487-.523.868-.928 1.145-.404.276-.864.415-1.378.415-.513 0-.973-.139-1.378-.415z"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M24 7.387v10.478c0 .23-.08.424-.238.576-.158.154-.352.23-.58.23h-8.547v-6.959l1.6 1.229c.101.063.222.094.36.094.14 0 .26-.031.361-.094l6.805-5.222c.087-.056.165-.14.234-.248.07-.108.105-.217.105-.326v-.158c0-.2-.07-.359-.21-.477-.14-.118-.298-.177-.472-.177h-.186l-7.037 5.408-1.01-.775V5.25h8.547c.228 0 .422.078.58.232.158.154.238.348.238.576v1.33zM14.635 6.287v12.19c0 .193-.07.357-.21.495-.14.136-.308.204-.508.204H.717c-.2 0-.368-.068-.507-.204a.674.674 0 0 1-.21-.495V6.287c0-.193.07-.358.21-.494.14-.138.308-.206.507-.206h13.2c.2 0 .368.068.508.206.14.136.21.3.21.494z"/>
             </svg>
           ) : (
-            // Slack icon
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/>
             </svg>
           )}
         </div>
-        <div className="message-content">
-          <div className="message-title">{message.title}</div>
-          <div className="message-subtitle">{message.subtitle}</div>
-          {isAnyEmail && (
-            recommendedAction.icon === 'unsubscribe' ? (
-              <a
-                href={message.type === 'gmail' || message.source === 'gmail'
-                  ? `https://mail.google.com/mail/u/0/#inbox/${message.id}`
-                  : `https://outlook.live.com/mail/0/inbox/id/${message.id}`}
-                className={`recommended-action ${recommendedAction.icon}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ExternalLink size={10} />
-                <span>Unsubscribe</span>
-              </a>
-            ) : (
-              <button
-                className={`recommended-action ${recommendedAction.icon}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (recommendedAction.icon === 'delete') {
-                    onDismiss(message.id)
-                  } else if (recommendedAction.icon === 'archive') {
-                    onArchive(message.id)
-                  } else if (recommendedAction.icon === 'reply') {
-                    setExpanded(true)
-                    setShowAIReply(true)
-                  } else if (recommendedAction.icon === 'review') {
-                    setExpanded(true)
-                  }
-                }}
-              >
-                {recommendedAction.icon === 'delete' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>}
-                {recommendedAction.icon === 'reply' && <Reply size={10} />}
-                {recommendedAction.icon === 'archive' && <Archive size={10} />}
-                {recommendedAction.icon === 'review' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>}
-                <span>{recommendedAction.label}</span>
-              </button>
-            )
-          )}
+        <div className="message-card-content">
+          <div className="message-card-from">{message.subtitle}</div>
+          <div className="message-card-subject">{message.title}</div>
         </div>
-        <div className="message-actions">
-          <button className="action-btn-small dismiss" onClick={(e) => { e.stopPropagation(); onDismiss(message.id); }} title="Dismiss">
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-          <button className="action-btn-small complete" onClick={(e) => { e.stopPropagation(); onArchive(message.id); }} title="Archive">
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-          </button>
-        </div>
-        <ChevronDown className={`task-chevron ${expanded ? 'rotated' : ''}`} size={14} />
+        <button className="message-card-expand" onClick={() => setExpanded(!expanded)}>
+          <ChevronDown className={expanded ? 'rotated' : ''} size={16} />
+        </button>
       </div>
-      {expanded && (
-        <div className="message-expanded">
-          <button className="message-close-btn" onClick={(e) => { e.stopPropagation(); setExpanded(false); setShowAIReply(false); }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+
+      {/* Primary action row */}
+      <div className="message-card-action">
+        {isAnyEmail && (
+          recommendedAction.icon === 'reply' ? (
+            <button className="message-action-btn primary" onClick={() => { setExpanded(true); setShowAIReply(true); }}>
+              <Reply size={12} />
+              <span>Reply</span>
+            </button>
+          ) : recommendedAction.icon === 'unsubscribe' ? (
+            <a href={getEmailUrl()} target="_blank" rel="noopener noreferrer" className="message-action-btn">
+              <ExternalLink size={12} />
+              <span>Unsubscribe</span>
+            </a>
+          ) : recommendedAction.icon === 'archive' ? (
+            <button className="message-action-btn" onClick={() => onArchive(message.id)}>
+              <Archive size={12} />
+              <span>Archive</span>
+            </button>
+          ) : recommendedAction.icon === 'delete' ? (
+            <button className="message-action-btn" onClick={() => onDismiss(message.id)}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
+              <span>Delete</span>
+            </button>
+          ) : (
+            <button className="message-action-btn" onClick={() => setExpanded(true)}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+              <span>Review</span>
+            </button>
+          )
+        )}
+        {isSlack && (
+          <button className="message-action-btn primary" onClick={() => setExpanded(true)}>
+            <Reply size={12} />
+            <span>Reply</span>
           </button>
-          {message.description && <div className="message-description">{message.description}</div>}
-          <div className="quick-actions">
-            {isAnyEmail && (
-              <>
-                <button className="quick-action" onClick={() => setShowAIReply(!showAIReply)}><Sparkles size={10} /><span>AI Reply</span></button>
-                <a
-                  href={message.type === 'gmail' || message.source === 'gmail'
-                    ? `https://mail.google.com/mail/u/0/#inbox/${message.id}`
-                    : `https://outlook.live.com/mail/0/inbox/id/${message.id}`}
-                  className="quick-action primary"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink size={10} /><span>Reply in {message.type === 'gmail' || message.source === 'gmail' ? 'Gmail' : 'Outlook'}</span>
-                </a>
-                <button className="quick-action" onClick={() => onArchive(message.id)}><Archive size={10} /><span>Archive</span></button>
-                <button className="quick-action delete" onClick={() => onDismiss(message.id)}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg><span>Delete</span></button>
-              </>
-            )}
-            {isSlack && (
-              <>
-                <button className="quick-action"><Reply size={10} /><span>Reply</span></button>
-                <button className="quick-action" onClick={() => onArchive(message.id)}><Archive size={10} /><span>Mark Read</span></button>
-              </>
-            )}
-          </div>
+        )}
+      </div>
+
+      {/* Expanded view */}
+      {expanded && (
+        <div className="message-card-expanded">
+          {message.description && <div className="message-card-body">{message.description}</div>}
+
+          {isAnyEmail && (
+            <div className="message-card-actions">
+              <button className="msg-action-btn" onClick={() => setShowAIReply(!showAIReply)}>
+                <Sparkles size={12} />
+                <span>AI Reply</span>
+              </button>
+              <a href={getEmailUrl()} target="_blank" rel="noopener noreferrer" className="msg-action-btn">
+                <ExternalLink size={12} />
+                <span>Open</span>
+              </a>
+              <button className="msg-action-btn" onClick={() => onArchive(message.id)}>
+                <Archive size={12} />
+                <span>Archive</span>
+              </button>
+              <button className="msg-action-btn" onClick={() => onDismiss(message.id)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
+                <span>Delete</span>
+              </button>
+            </div>
+          )}
+
+          {isSlack && (
+            <div className="message-card-actions">
+              <button className="msg-action-btn"><Reply size={12} /><span>Reply</span></button>
+              <button className="msg-action-btn" onClick={() => onArchive(message.id)}><Archive size={12} /><span>Mark Read</span></button>
+            </div>
+          )}
+
           {isAnyEmail && showAIReply && (
             <div className="ai-reply-section">
               <div className="ai-reply-header"><Sparkles size={12} /><span>Suggested Reply</span></div>
               <div className="ai-reply-content">{generateAIReply(message)}</div>
               <div className="ai-reply-actions">
                 <button className="ai-reply-btn" onClick={handleCopyReply}><Copy size={10} /><span>{copied ? 'Copied!' : 'Copy'}</span></button>
-                <a
-                  href={message.type === 'gmail' || message.source === 'gmail'
-                    ? `https://mail.google.com/mail/u/0/#inbox/${message.id}`
-                    : `https://outlook.live.com/mail/0/inbox/id/${message.id}`}
-                  className="ai-reply-btn primary"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a href={getEmailUrl()} className="ai-reply-btn primary" target="_blank" rel="noopener noreferrer">
                   <ExternalLink size={10} /><span>Reply in {message.type === 'gmail' || message.source === 'gmail' ? 'Gmail' : 'Outlook'}</span>
                 </a>
               </div>
