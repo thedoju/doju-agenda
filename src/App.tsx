@@ -1827,7 +1827,7 @@ function App() {
   const [newTaskInput, setNewTaskInput] = useState('')
   const [undoHistory, setUndoHistory] = useState<Array<{ type: 'complete' | 'dismiss'; id: string }>>([])
   const [showUndoToast, setShowUndoToast] = useState(false)
-  const [taskFilter, setTaskFilter] = useState<'all' | 'complete' | 'deleted' | 'priority'>('all')
+  const [taskFilter, setTaskFilter] = useState<'all' | 'ready' | 'complete' | 'deleted' | 'priority'>('all')
   const [groupMessages, setGroupMessages] = useState(true) // Toggle for nested/ungrouped messages
 
   // Persist state to localStorage when they change
@@ -1913,8 +1913,15 @@ function App() {
     status: (taskStatuses[t.id] || t.status || 'pending') as AgendaItem['status']
   }))
 
-  const activeTasks = tasksWithPriority.filter(t => !completedIds.includes(t.id) && !dismissedIds.includes(t.id) && t.status !== 'complete' && t.status !== 'ignored')
-  const completedTasks = tasksWithPriority.filter(t => completedIds.includes(t.id) || t.status === 'complete')
+  // "Ready" = completed in Asana (by team) but not yet completed by you in localhost
+  // "Complete" = you clicked tick in localhost (sent to client)
+  const readyTasks = tasksWithPriority.filter(t =>
+    t.completed === true && !completedIds.includes(t.id) && !dismissedIds.includes(t.id)
+  )
+  const activeTasks = tasksWithPriority.filter(t =>
+    !completedIds.includes(t.id) && !dismissedIds.includes(t.id) && t.status !== 'ignored'
+  )
+  const completedTasks = tasksWithPriority.filter(t => completedIds.includes(t.id))
   const deletedTasks = tasksWithPriority.filter(t => dismissedIds.includes(t.id) || t.status === 'ignored')
   const activeMessages = messages.filter(m => !completedIds.includes(m.id) && !dismissedIds.includes(m.id))
   const orderedTasks = [...activeTasks].sort((a, b) => taskOrder.indexOf(a.id) - taskOrder.indexOf(b.id))
@@ -1923,6 +1930,8 @@ function App() {
   // Filter tasks based on selected tab
   const getFilteredTasks = () => {
     switch (taskFilter) {
+      case 'ready':
+        return readyTasks
       case 'complete':
         return completedTasks
       case 'deleted':
@@ -2249,6 +2258,13 @@ function App() {
               <span className="filter-count">{orderedTasks.length}</span>
             </button>
             <button
+              className={`filter-tab ${taskFilter === 'ready' ? 'active' : ''}`}
+              onClick={() => setTaskFilter('ready')}
+            >
+              Ready
+              <span className="filter-count">{readyTasks.length}</span>
+            </button>
+            <button
               className={`filter-tab ${taskFilter === 'priority' ? 'active' : ''}`}
               onClick={() => setTaskFilter('priority')}
             >
@@ -2259,7 +2275,7 @@ function App() {
               className={`filter-tab ${taskFilter === 'complete' ? 'active' : ''}`}
               onClick={() => setTaskFilter('complete')}
             >
-              Complete
+              Sent
               <span className="filter-count">{completedTasks.length}</span>
             </button>
             <button
