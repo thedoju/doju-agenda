@@ -1396,6 +1396,13 @@ const MessageItem = ({ message, onArchive, onDismiss: _onDismiss }: { message: A
           <div className="message-card-from">{message.subtitle}</div>
           <div className="message-card-subject">{message.title}</div>
         </div>
+        <button
+          className="message-quick-read"
+          onClick={(e) => { e.stopPropagation(); onArchive(message.id); }}
+          title="Mark Read"
+        >
+          <Check size={14} />
+        </button>
         <div className="message-card-expand">
           <ChevronDown className={expanded ? 'rotated' : ''} size={16} />
         </div>

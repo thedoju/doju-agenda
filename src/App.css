@@ -1856,13 +1856,18 @@ body.light-mode .action-btn-small.complete {
 }
 
 .calendar-meeting-notes {
-  font-size: 10px;
-  color: var(--text-muted);
-  margin-top: 2px;
+  font-size: 9px;
+  color: var(--priority);
+  margin-top: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-style: italic;
+  background: rgba(252, 212, 67, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  display: inline-block;
+  max-width: 100%;
 }
 
 .calendar-join {
@@ -2129,6 +2134,27 @@ body.light-mode .action-btn-small.complete {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.message-quick-read {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.message-quick-read:hover {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--bg-primary);
 }
 
 .message-card-expand {
