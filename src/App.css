@@ -1641,6 +1641,24 @@ body.light-mode .action-btn-small.complete {
   color: var(--text-muted);
 }
 
+.status-tag.New\ Lead,
+.status-tag[class*="New Lead"] {
+  background: rgba(147, 51, 234, 0.15);
+  color: #a78bfa;
+}
+
+.status-tag.Project\ Start,
+.status-tag[class*="Project Start"] {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.status-tag.Needs\ Revision,
+.status-tag[class*="Needs Revision"] {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+}
+
 .status-tag.in-progress {
   background: rgba(66, 153, 225, 0.15);
   color: #63b3ed;
@@ -1835,6 +1853,16 @@ body.light-mode .action-btn-small.complete {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.calendar-meeting-notes {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
 }
 
 .calendar-join {

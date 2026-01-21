@@ -940,6 +940,9 @@ const StatusTag = ({ status, onChange }: { status: string; onChange: (newStatus:
   const [isOpen, setIsOpen] = useState(false)
   const statuses = [
     { value: 'pending', label: 'Pending' },
+    { value: 'New Lead', label: 'New Lead' },
+    { value: 'Project Start', label: 'Project Start' },
+    { value: 'Needs Revision', label: 'Needs Revision' },
     { value: 'in-progress', label: 'In Progress' },
     { value: 'due-today', label: 'Due Today' },
     { value: 'complete', label: 'Complete' },
@@ -1063,6 +1066,9 @@ const MeetingCard = ({ meeting, style, isNow, isPast, isMentoring }: {
       >
         <div className="calendar-meeting-time">{meeting.time} · {meeting.duration}</div>
         <div className="calendar-meeting-title">{displayTitle}</div>
+        {notes && style.height >= 50 && (
+          <div className="calendar-meeting-notes">{notes}</div>
+        )}
         {meeting.meetingLink && style.height >= 60 && (
           <a
             href={meeting.meetingLink}
