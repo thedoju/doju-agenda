@@ -1066,7 +1066,7 @@ const MeetingCard = ({ meeting, style, isNow, isPast, isMentoring }: {
       >
         <div className="calendar-meeting-time">{meeting.time} · {meeting.duration}</div>
         <div className="calendar-meeting-title">{displayTitle}</div>
-        {notes && style.height >= 45 && (
+        {notes && (
           <div className="calendar-meeting-notes">{notes}</div>
         )}
         {meeting.meetingLink && style.height >= 60 && (

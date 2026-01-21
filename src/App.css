@@ -2136,15 +2136,21 @@ body.light-mode .action-btn-small.complete {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-muted);
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 50%;
   transition: all 0.15s;
   flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.message-quick-read svg {
+  width: 12px;
+  height: 12px;
 }
 
 .message-quick-read:hover {
