@@ -1441,6 +1441,7 @@ interface TaskItemProps {
   onDismiss: (id: string) => void
   onTogglePriority: (id: string) => void
   onStatusChange: (id: string, status: string) => void
+  onDueDateChange?: (id: string, date: string | null) => void
   onDragStart?: (e: React.DragEvent, id: string) => void
   onDragOver?: (e: React.DragEvent) => void
   onDrop?: (e: React.DragEvent, id: string) => void
@@ -1448,8 +1449,9 @@ interface TaskItemProps {
   minimal?: boolean
 }
 
-const TaskItem = ({ item, onComplete, onDismiss, onTogglePriority, onStatusChange, onDragStart, onDragOver, onDrop, isDragging, minimal }: TaskItemProps) => {
+const TaskItem = ({ item, onComplete, onDismiss, onTogglePriority, onStatusChange, onDueDateChange, onDragStart, onDragOver, onDrop, isDragging, minimal }: TaskItemProps) => {
   const [expanded, setExpanded] = useState(false)
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const [showAIReply, setShowAIReply] = useState(false)
   const [copied, setCopied] = useState(false)
   const isEmail = item.type === 'email'
@@ -1511,9 +1513,47 @@ const TaskItem = ({ item, onComplete, onDismiss, onTogglePriority, onStatusChang
         <div className="task-content">
           <div className="task-title">{item.title}</div>
           <div className="task-subtitle">
-            {dueDateStatus && <span className={`due-badge ${dueDateStatus.class}`}><Clock size={10} />{dueDateStatus.label}</span>}
-            {item.subtitle && <span>{item.subtitle}</span>}
+            {dueDateStatus ? (
+              <span
+                className={`due-badge clickable ${dueDateStatus.class}`}
+                onClick={(e) => { e.stopPropagation(); setShowDatePicker(!showDatePicker); }}
+              >
+                <Clock size={10} />{dueDateStatus.label}
+              </span>
+            ) : (
+              <span
+                className="due-badge clickable no-date"
+                onClick={(e) => { e.stopPropagation(); setShowDatePicker(!showDatePicker); }}
+              >
+                No due date
+              </span>
+            )}
+            {item.subtitle && !item.subtitle.includes('Due') && <span>{item.subtitle}</span>}
           </div>
+          {showDatePicker && onDueDateChange && (
+            <div className="date-picker-dropdown" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="date"
+                value={item.dueDate || ''}
+                onChange={(e) => {
+                  onDueDateChange(item.id, e.target.value || null)
+                  setShowDatePicker(false)
+                }}
+                autoFocus
+              />
+              {item.dueDate && (
+                <button
+                  className="clear-date-btn"
+                  onClick={() => {
+                    onDueDateChange(item.id, null)
+                    setShowDatePicker(false)
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
         </div>
         {item.type === 'task' && (
           <StatusTag status={item.status || 'pending'} onChange={(newStatus) => onStatusChange(item.id, newStatus)} />
@@ -2006,6 +2046,12 @@ function App() {
     setTaskStatuses(prev => ({ ...prev, [id]: status }))
   }
 
+  // Store custom due dates for tasks
+  const [taskDueDates, setTaskDueDates] = useState<Record<string, string | null>>({})
+  const handleDueDateChange = (id: string, date: string | null) => {
+    setTaskDueDates(prev => ({ ...prev, [id]: date }))
+  }
+
   const handleDragStart = (e: React.DragEvent, id: string) => { setDraggedId(id); e.dataTransfer.effectAllowed = 'move' }
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }
   const handleDrop = (e: React.DragEvent, targetId: string) => {
@@ -2116,11 +2162,6 @@ function App() {
         <div className="summary-card">
           <h1 className="greeting">{greeting}</h1>
           <p className="ai-summary">{aiSummary}</p>
-          <p className="summary-subtitle">
-            {readyTasks.length > 0 && <span className="summary-stat ready">{readyTasks.length} ready</span>}
-            {priorityTasks.length > 0 && <span className="summary-stat priority">{priorityTasks.length} priority</span>}
-            {activeMessages.length > 0 && <span className="summary-stat messages">{activeMessages.length} messages</span>}
-          </p>
         </div>
 
         {/* Main navigation tabs */}
@@ -2235,11 +2276,12 @@ function App() {
               {filteredTasks.length > 0 ? filteredTasks.map(task => (
                 <TaskItem
                   key={task.id}
-                  item={task}
+                  item={{ ...task, dueDate: taskDueDates[task.id] !== undefined ? taskDueDates[task.id] || undefined : task.dueDate }}
                   onComplete={handleComplete}
                   onDismiss={handleDismiss}
                   onTogglePriority={handleTogglePriority}
                   onStatusChange={handleStatusChange}
+                  onDueDateChange={handleDueDateChange}
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}

@@ -1213,6 +1213,7 @@ body {
 .task-content {
   flex: 1;
   min-width: 0;
+  position: relative;
 }
 
 .task-title {
@@ -1242,6 +1243,21 @@ body {
   color: var(--text-muted);
 }
 
+.due-badge.clickable {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.due-badge.clickable:hover {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.due-badge.no-date {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .due-badge.overdue {
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
@@ -1255,6 +1271,54 @@ body {
 .due-badge.due-soon {
   background: rgba(59, 130, 246, 0.15);
   color: #3b82f6;
+}
+
+/* Date Picker Dropdown */
+.date-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.date-picker-dropdown input[type="date"] {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.date-picker-dropdown input[type="date"]:focus {
+  border-color: var(--priority);
+}
+
+.clear-date-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-date-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: #ef4444;
 }
 
 /* Task item overdue state */
