@@ -153,35 +153,23 @@ body {
 
 /* Header */
 .header {
-  margin-bottom: 32px;
-}
-
-.header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   margin-bottom: 24px;
 }
 
-/* Header Left - Weather/Location/Time */
-.header-left {
+/* Header Brand */
+.header-brand {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--text-secondary);
+  gap: 10px;
+  margin-bottom: 24px;
 }
 
-.header-left svg {
-  color: var(--text-muted);
-}
-
-.weather-info {
-  color: var(--text-secondary);
-}
-
-.weather-divider {
-  color: var(--text-muted);
+.brand-name {
+  font-family: 'Orpix', monospace;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--text-primary);
+  flex: 1;
 }
 
 .header-actions {
@@ -208,10 +196,6 @@ body {
   color: var(--text-secondary);
 }
 
-.icon-btn.focus-btn:hover {
-  color: var(--text-primary);
-}
-
 .icon-btn.spinning svg {
   animation: spin 1s linear infinite;
 }
@@ -221,28 +205,146 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* Date Display */
-.date-display {
-  margin-bottom: 20px;
+/* Horizontal Date Picker Strip */
+.date-picker-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 8px 0;
 }
 
-.date-details {
+.date-picker-day {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 4px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 44px;
+  position: relative;
 }
 
-.date-day {
-  font-family: 'Orpix', monospace;
-  font-size: 48px;
-  line-height: 1;
-  color: var(--text-primary);
-  letter-spacing: -1px;
-}
-
-.date-month {
-  font-size: 14px;
+.date-picker-day .day-label {
+  font-size: 11px;
   color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.date-picker-day .day-number {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.date-picker-day .today-label {
+  font-size: 8px;
+  color: var(--priority);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: absolute;
+  top: -2px;
+}
+
+.date-picker-day:hover {
+  background: var(--bg-hover);
+}
+
+.date-picker-day.today .day-number {
+  color: var(--text-primary);
+}
+
+.date-picker-day.selected {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.date-picker-day.selected .day-number {
+  color: var(--text-primary);
+}
+
+.date-picker-day.selected.today {
+  border-color: var(--priority);
+}
+
+/* Main Navigation Tabs */
+.main-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.main-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.main-tab:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.main-tab.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.tab-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--priority);
+  color: var(--bg-primary);
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* Summary subtitle stats */
+.summary-subtitle {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.summary-stat {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.summary-stat.ready {
+  background: rgba(81, 207, 102, 0.15);
+  color: var(--success);
+}
+
+.summary-stat.priority {
+  background: rgba(252, 212, 67, 0.15);
+  color: var(--priority);
+}
+
+.summary-stat.messages {
+  background: rgba(66, 153, 225, 0.15);
+  color: #63b3ed;
 }
 
 /* Summary Card with Greeting */

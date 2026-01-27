@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom'
-import { format, isToday, addDays, isSameDay, addWeeks, getDayOfYear } from 'date-fns'
+import { format, isToday, addDays, subDays, isSameDay, addWeeks, getDayOfYear } from 'date-fns'
 import {
   ChevronDown,
   RefreshCw,
   Sun,
   ExternalLink,
   Sparkles,
-  MapPin,
   Moon,
   ChevronLeft,
   ChevronRight,
@@ -17,7 +16,6 @@ import {
   Archive,
   Send,
   Copy,
-  Volume2,
   Play,
   Pause,
   Pin,
@@ -28,7 +26,9 @@ import {
   CheckCircle,
   AlertCircle,
   Settings,
-  Link2
+  Link2,
+  Mail,
+  Calendar
 } from 'lucide-react'
 import './App.css'
 
@@ -116,6 +116,7 @@ interface AgendaItem {
   dueDate?: string // YYYY-MM-DD format
   calendarColor?: string // Google Calendar event color
   eventDate?: string // YYYY-MM-DD format for the event date
+  completed?: boolean // Whether task is completed in source system
 }
 
 // LocalStorage keys
@@ -495,108 +496,6 @@ const parseNaturalLanguage = (input: string): { title: string; date?: Date; time
   return { title, date, time, priority }
 }
 
-// Generate conversational AI summary
-const generateAISummary = (
-  tasks: AgendaItem[],
-  meetings: AgendaItem[],
-  messages: AgendaItem[],
-  completedCount: number,
-  hour: number,
-  _name: string,
-  totalTasks: number
-) => {
-  const urgentTasks = tasks.filter(t => t.isPriority || t.status === 'due-today')
-  const emailMessages = messages.filter(m => m.type === 'email' || m.type === 'outlook')
-  const upcomingMeetings = meetings.filter(m => {
-    if (!m.time) return false
-    const [h] = m.time.split(':').map(Number)
-    return h >= hour
-  })
-
-  // Early morning (before 9am) - Preparation mode
-  if (hour < 9) {
-    let summary = ''
-    if (meetings.length > 0) {
-      const firstMeeting = meetings[0]
-      summary = `Your first meeting is at ${firstMeeting.time} - ${firstMeeting.title}. `
-    }
-    if (urgentTasks.length > 0) {
-      summary += `${urgentTasks.length} priority task${urgentTasks.length > 1 ? 's' : ''} to tackle today. `
-    }
-    if (emailMessages.length > 0) {
-      summary += `${emailMessages.length} email${emailMessages.length > 1 ? 's' : ''} waiting for you. `
-    }
-    return summary + "Let's have a great day!"
-  }
-
-  // Morning (9am-12pm) - Active work mode
-  if (hour < 12) {
-    let summary = ''
-    if (completedCount > 0) {
-      summary = `Nice start! ${completedCount} item${completedCount > 1 ? 's' : ''} done. `
-    }
-    if (upcomingMeetings.length > 0) {
-      summary += `${upcomingMeetings.length} meeting${upcomingMeetings.length > 1 ? 's' : ''} coming up. `
-    }
-    if (urgentTasks.length > 0) {
-      summary += `Focus on ${urgentTasks[0].title}. `
-    }
-    return summary || "Morning's looking clear - great time for deep work."
-  }
-
-  // Afternoon (12pm-5pm) - Momentum mode
-  if (hour < 17) {
-    let summary = ''
-    const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
-    if (progressPercent >= 75) {
-      summary = `Crushing it! ${progressPercent}% of your tasks done. `
-    } else if (progressPercent >= 50) {
-      summary = `Good momentum - halfway through your tasks. `
-    } else if (completedCount > 0) {
-      summary = `${completedCount} down, ${totalTasks - completedCount} to go. `
-    }
-    if (upcomingMeetings.length > 0) {
-      summary += `${upcomingMeetings.length} more meeting${upcomingMeetings.length > 1 ? 's' : ''} today. `
-    }
-    if (urgentTasks.length > 0 && progressPercent < 50) {
-      summary += `Don't forget: ${urgentTasks[0].title}. `
-    }
-    return summary || "Afternoon's looking good. Keep the momentum going!"
-  }
-
-  // Evening (5pm-8pm) - Wind down mode
-  if (hour < 20) {
-    let summary = ''
-    const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
-    if (progressPercent >= 80) {
-      summary = `Fantastic day! You completed ${completedCount} task${completedCount > 1 ? 's' : ''}. `
-    } else if (completedCount > 0) {
-      summary = `Solid effort today - ${completedCount} task${completedCount > 1 ? 's' : ''} completed. `
-    } else {
-      summary = "Day's winding down. "
-    }
-    if (upcomingMeetings.length > 0) {
-      summary += `Just ${upcomingMeetings.length} more meeting${upcomingMeetings.length > 1 ? 's' : ''} to go. `
-    }
-    summary += "Time to start wrapping up!"
-    return summary
-  }
-
-  // Night (after 8pm) - Congratulations mode
-  let summary = ''
-  if (completedCount > 0) {
-    const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
-    if (progressPercent >= 90) {
-      summary = `Amazing work today! You smashed ${completedCount} task${completedCount > 1 ? 's' : ''}. `
-    } else if (progressPercent >= 70) {
-      summary = `Great day! ${completedCount} task${completedCount > 1 ? 's' : ''} completed. `
-    } else {
-      summary = `You got ${completedCount} thing${completedCount > 1 ? 's' : ''} done today. `
-    }
-  }
-  summary += "Rest up - you've earned it. See you tomorrow!"
-  return summary
-}
 
 // Demo data
 const generateDemoData = () => {
@@ -1836,12 +1735,14 @@ function App() {
   const [taskStatuses, setTaskStatuses] = useState<Record<string, string>>(() => loadFromStorage(STORAGE_KEYS.taskStatuses, {}))
 
   const [draggedId, setDraggedId] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [_lastUpdated, setLastUpdated] = useState(new Date())
   const [newTaskInput, setNewTaskInput] = useState('')
   const [undoHistory, setUndoHistory] = useState<Array<{ type: 'complete' | 'dismiss'; id: string }>>([])
   const [showUndoToast, setShowUndoToast] = useState(false)
   const [taskFilter, setTaskFilter] = useState<'all' | 'ready' | 'complete' | 'deleted' | 'priority'>('all')
   const [groupMessages, setGroupMessages] = useState(true) // Toggle for nested/ungrouped messages
+  const [mainView, setMainView] = useState<'calendar' | 'tasks' | 'inbox'>('calendar')
+  const [selectedDate, setSelectedDate] = useState(new Date())
 
   // Persist state to localStorage when they change
   useEffect(() => { saveToStorage(STORAGE_KEYS.completedIds, completedIds) }, [completedIds])
@@ -1851,9 +1752,6 @@ function App() {
   useEffect(() => { saveToStorage(STORAGE_KEYS.taskPriorities, taskPriorities) }, [taskPriorities])
   useEffect(() => { saveToStorage(STORAGE_KEYS.taskStatuses, taskStatuses) }, [taskStatuses])
 
-  // Read Aloud state for word-by-word highlighting
-  const [isSpeaking, setIsSpeaking] = useState(false)
-  const [spokenCharIndex, setSpokenCharIndex] = useState(0)
 
   // Real data from n8n webhook
   const [agendaData, setAgendaData] = useState<{
@@ -1867,7 +1765,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [weather] = useState<WeatherData>({ temp: 22, condition: 'Sunny', location: 'Cape Town' })
+  const [_weather] = useState<WeatherData>({ temp: 22, condition: 'Sunny', location: 'Cape Town' })
 
   // Fetch data from n8n webhook
   const fetchAgendaData = async () => {
@@ -2045,89 +1943,7 @@ function App() {
   }
 
   const greeting = getGreeting(currentTime.getHours(), userName, getDayOfYear(currentTime))
-  const aiSummary = generateAISummary(activeTasks, todayMeetings, activeMessages, completedCount, currentTime.getHours(), userName, totalItems)
 
-  // Pause state for speech synthesis
-  const [isPaused, setIsPaused] = useState(false)
-
-  const handleReadAloud = () => {
-    // If paused, resume
-    if (isPaused) {
-      speechSynthesis.resume()
-      setIsPaused(false)
-      setIsSpeaking(true)
-      return
-    }
-
-    // If speaking, pause
-    if (isSpeaking) {
-      speechSynthesis.pause()
-      setIsPaused(true)
-      setIsSpeaking(false)
-      return
-    }
-
-    // Start fresh
-    speechSynthesis.cancel()
-    setSpokenCharIndex(0)
-
-    const utterance = new SpeechSynthesisUtterance(aiSummary)
-    utterance.rate = 0.95
-    utterance.pitch = 1
-
-    // Set English female voice
-    const voices = speechSynthesis.getVoices()
-    const englishFemaleVoice = voices.find(voice =>
-      voice.lang.startsWith('en-GB') && voice.name.toLowerCase().includes('female')
-    ) || voices.find(voice =>
-      voice.lang.startsWith('en-GB')
-    ) || voices.find(voice =>
-      voice.lang.startsWith('en') && voice.name.toLowerCase().includes('female')
-    ) || voices.find(voice =>
-      voice.name.includes('Samantha') || voice.name.includes('Karen') ||
-      voice.name.includes('Moira') || voice.name.includes('Fiona') ||
-      voice.name.includes('Google UK English Female')
-    )
-    if (englishFemaleVoice) {
-      utterance.voice = englishFemaleVoice
-    }
-
-    // Track word boundaries as speech progresses
-    utterance.onboundary = (event) => {
-      if (event.name === 'word') {
-        setSpokenCharIndex(event.charIndex + (event.charLength || 1))
-      }
-    }
-
-    utterance.onstart = () => {
-      setIsSpeaking(true)
-      setIsPaused(false)
-      setSpokenCharIndex(0)
-    }
-
-    utterance.onend = () => {
-      setIsSpeaking(false)
-      setIsPaused(false)
-      // Keep the text white (fully highlighted) after finishing
-      setSpokenCharIndex(aiSummary.length)
-    }
-
-    utterance.onerror = () => {
-      setIsSpeaking(false)
-      setIsPaused(false)
-      setSpokenCharIndex(0)
-    }
-
-    speechSynthesis.speak(utterance)
-  }
-
-  // Stop speech completely
-  const handleStopSpeech = () => {
-    speechSynthesis.cancel()
-    setIsSpeaking(false)
-    setIsPaused(false)
-    setSpokenCharIndex(0)
-  }
 
   // Show loading state
   if (loading) {
@@ -2164,13 +1980,10 @@ function App() {
       )}
 
       <header className="header">
-        <div className="header-top">
-          <div className="header-left">
-            <MapPin size={12} />
-            <span>{weather.location}</span>
-            <span className="weather-divider">·</span>
-            <span>{format(currentTime, 'h:mm a')}</span>
-          </div>
+        {/* Logo and brand */}
+        <div className="header-brand">
+          <DojuLogo dark={darkMode} />
+          <span className="brand-name">DOJU DAILY</span>
           <div className="header-actions">
             <button className="icon-btn" onClick={() => setShowFocusMode(true)} title="Focus Mode">
               <Play size={16} />
@@ -2184,44 +1997,61 @@ function App() {
           </div>
         </div>
 
-        <div className="date-display">
-          <div className="date-details">
-            <span className="date-day">{format(currentTime, 'EEEE')}</span>
-            <span className="date-month">{format(currentTime, 'd')} {format(currentTime, 'MMMM yyyy')}</span>
-          </div>
+        {/* Horizontal date picker */}
+        <div className="date-picker-strip">
+          {Array.from({ length: 14 }, (_, i) => {
+            const date = addDays(subDays(selectedDate, 6), i)
+            const isSelected = isSameDay(date, selectedDate)
+            const isTodayDate = isToday(date)
+            return (
+              <button
+                key={i}
+                className={`date-picker-day ${isSelected ? 'selected' : ''} ${isTodayDate ? 'today' : ''}`}
+                onClick={() => setSelectedDate(date)}
+              >
+                <span className="day-label">{format(date, 'EEE').charAt(0)}</span>
+                <span className="day-number">{format(date, 'd')}</span>
+                {isTodayDate && <span className="today-label">TODAY</span>}
+              </button>
+            )
+          })}
         </div>
 
+        {/* Greeting and summary */}
         <div className="summary-card">
           <h1 className="greeting">{greeting}</h1>
-          <p className="summary">
-            {isSpeaking || spokenCharIndex > 0 ? (
-              <>
-                <span className="spoken-text">{aiSummary.slice(0, spokenCharIndex)}</span>
-                <span className="unspoken-text">{aiSummary.slice(spokenCharIndex)}</span>
-              </>
-            ) : (
-              aiSummary
-            )}
+          <p className="summary-subtitle">
+            {readyTasks.length > 0 && <span className="summary-stat ready">{readyTasks.length} ready</span>}
+            {priorityTasks.length > 0 && <span className="summary-stat priority">{priorityTasks.length} priority</span>}
+            {activeMessages.length > 0 && <span className="summary-stat messages">{activeMessages.length} messages</span>}
           </p>
-          <div className="summary-footer">
-            <span className="last-updated">Last updated: {format(lastUpdated, 'h:mm a').toLowerCase()}</span>
-            <div className="summary-actions">
-              <button className={`summary-btn ${isSpeaking || isPaused ? 'active' : ''}`} onClick={handleReadAloud}>
-                {isSpeaking ? <Pause size={14} /> : isPaused ? <Play size={14} /> : <Volume2 size={14} />}
-                <span>{isSpeaking ? 'Pause' : isPaused ? 'Resume' : 'Read Aloud'}</span>
-              </button>
-              {(isSpeaking || isPaused) && (
-                <button className="summary-btn stop" onClick={handleStopSpeech}>
-                  <X size={14} />
-                  <span>Stop</span>
-                </button>
-              )}
-              <button className="summary-btn" onClick={handleRefresh}>
-                <RefreshCw size={14} />
-                <span>Refresh</span>
-              </button>
-            </div>
-          </div>
+        </div>
+
+        {/* Main navigation tabs */}
+        <div className="main-tabs">
+          <button
+            className={`main-tab ${mainView === 'calendar' ? 'active' : ''}`}
+            onClick={() => setMainView('calendar')}
+          >
+            <Calendar size={16} />
+            <span>Calendar</span>
+          </button>
+          <button
+            className={`main-tab ${mainView === 'tasks' ? 'active' : ''}`}
+            onClick={() => setMainView('tasks')}
+          >
+            <CheckCircle size={16} />
+            <span>Tasks</span>
+            {readyTasks.length > 0 && <span className="tab-badge">{readyTasks.length}</span>}
+          </button>
+          <button
+            className={`main-tab ${mainView === 'inbox' ? 'active' : ''}`}
+            onClick={() => setMainView('inbox')}
+          >
+            <Mail size={16} />
+            <span>Inbox</span>
+            {activeMessages.length > 0 && <span className="tab-badge">{activeMessages.length}</span>}
+          </button>
         </div>
       </header>
 
