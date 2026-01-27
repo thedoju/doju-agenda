@@ -496,6 +496,80 @@ const parseNaturalLanguage = (input: string): { title: string; date?: Date; time
   return { title, date, time, priority }
 }
 
+// Generate conversational AI summary
+const generateAISummary = (
+  tasks: AgendaItem[],
+  meetings: AgendaItem[],
+  messages: AgendaItem[],
+  completedCount: number,
+  hour: number,
+  name: string,
+  totalTasks: number
+) => {
+  const urgentTasks = tasks.filter(t => t.isPriority || t.status === 'due-today')
+  const emailMessages = messages.filter(m => m.type === 'email' || m.type === 'outlook')
+  const upcomingMeetings = meetings.filter(m => {
+    if (!m.time) return false
+    const [h] = m.time.split(':').map(Number)
+    return h >= hour
+  })
+
+  // Early morning (before 9am)
+  if (hour < 9) {
+    let summary = `Good morning, ${name}! `
+    if (meetings.length > 0) {
+      summary += `Your first meeting is at ${meetings[0].time} - ${meetings[0].title}. `
+    }
+    if (urgentTasks.length > 0) {
+      summary += `You have ${urgentTasks.length} priority task${urgentTasks.length > 1 ? 's' : ''} to tackle today. `
+    }
+    if (emailMessages.length > 0) {
+      summary += `${emailMessages.length} email${emailMessages.length > 1 ? 's' : ''} waiting for you.`
+    }
+    return summary || `Good morning, ${name}! Let's have a great day.`
+  }
+
+  // Morning (9am-12pm)
+  if (hour < 12) {
+    let summary = ''
+    if (completedCount > 0) {
+      summary = `Nice start! ${completedCount} item${completedCount > 1 ? 's' : ''} done. `
+    }
+    if (upcomingMeetings.length > 0) {
+      summary += `${upcomingMeetings.length} meeting${upcomingMeetings.length > 1 ? 's' : ''} coming up. `
+    }
+    if (urgentTasks.length > 0) {
+      summary += `Focus on ${urgentTasks[0].title}.`
+    }
+    return summary || "Morning's looking clear - great time for deep work."
+  }
+
+  // Afternoon (12pm-5pm)
+  if (hour < 17) {
+    const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
+    let summary = ''
+    if (progressPercent >= 75) {
+      summary = `Crushing it! ${progressPercent}% of your tasks done. `
+    } else if (progressPercent >= 50) {
+      summary = `Good momentum - halfway through your tasks. `
+    } else if (completedCount > 0) {
+      summary = `${completedCount} down, ${totalTasks - completedCount} to go. `
+    }
+    if (upcomingMeetings.length > 0) {
+      summary += `${upcomingMeetings.length} more meeting${upcomingMeetings.length > 1 ? 's' : ''} today.`
+    }
+    return summary || "Afternoon's looking good!"
+  }
+
+  // Evening (after 5pm)
+  const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
+  if (progressPercent >= 80) {
+    return `Fantastic day! You completed ${completedCount} task${completedCount > 1 ? 's' : ''}. Time to wind down!`
+  } else if (completedCount > 0) {
+    return `Solid effort today - ${completedCount} task${completedCount > 1 ? 's' : ''} completed. Rest up!`
+  }
+  return "Day's winding down. See you tomorrow!"
+}
 
 // Demo data
 const generateDemoData = () => {
@@ -1943,7 +2017,7 @@ function App() {
   }
 
   const greeting = getGreeting(currentTime.getHours(), userName, getDayOfYear(currentTime))
-
+  const aiSummary = generateAISummary(activeTasks, todayMeetings, activeMessages, completedCount, currentTime.getHours(), userName, totalItems)
 
   // Show loading state
   if (loading) {
@@ -1999,8 +2073,8 @@ function App() {
 
         {/* Horizontal date picker */}
         <div className="date-picker-strip">
-          {Array.from({ length: 14 }, (_, i) => {
-            const date = addDays(subDays(selectedDate, 6), i)
+          {Array.from({ length: 7 }, (_, i) => {
+            const date = addDays(subDays(new Date(), 3), i)
             const isSelected = isSameDay(date, selectedDate)
             const isTodayDate = isToday(date)
             return (
@@ -2011,7 +2085,6 @@ function App() {
               >
                 <span className="day-label">{format(date, 'EEE').charAt(0)}</span>
                 <span className="day-number">{format(date, 'd')}</span>
-                {isTodayDate && <span className="today-label">TODAY</span>}
               </button>
             )
           })}
@@ -2020,6 +2093,7 @@ function App() {
         {/* Greeting and summary */}
         <div className="summary-card">
           <h1 className="greeting">{greeting}</h1>
+          <p className="ai-summary">{aiSummary}</p>
           <p className="summary-subtitle">
             {readyTasks.length > 0 && <span className="summary-stat ready">{readyTasks.length} ready</span>}
             {priorityTasks.length > 0 && <span className="summary-stat priority">{priorityTasks.length} priority</span>}
@@ -2055,166 +2129,176 @@ function App() {
         </div>
       </header>
 
-      <div className="task-input-section">
-        <input
-          type="text"
-          className="task-input"
-          placeholder="Add task... try 'Call Sarah tomorrow at 3pm !'"
-          value={newTaskInput}
-          onChange={e => setNewTaskInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleAddTask()}
-        />
-        <button className="task-input-btn" onClick={handleAddTask}>
-          <Plus size={18} />
-        </button>
-      </div>
+      {/* Calendar View */}
+      {mainView === 'calendar' && (
+        <>
+          <div className="view-toggle">
+            <button className={`toggle-btn ${!showWeekView ? 'active' : ''}`} onClick={() => setShowWeekView(false)}>Today</button>
+            <button className={`toggle-btn ${showWeekView ? 'active' : ''}`} onClick={() => setShowWeekView(true)}>Week</button>
+          </div>
 
-      <ProgressBar completed={completedCount} total={totalItems} />
+          {showWeekView && <WeekView weekEvents={weekEvents} selectedDay={selectedDay} onSelectDay={setSelectedDay} />}
 
-      <div className="view-toggle">
-        <button className={`toggle-btn ${!showWeekView ? 'active' : ''}`} onClick={() => setShowWeekView(false)}>Today</button>
-        <button className={`toggle-btn ${showWeekView ? 'active' : ''}`} onClick={() => setShowWeekView(true)}>Week</button>
-      </div>
-
-      {showWeekView && <WeekView weekEvents={weekEvents} selectedDay={selectedDay} onSelectDay={setSelectedDay} />}
-
-      {/* Today's Schedule - Visual Timeline */}
-      {!showWeekView && (
-        <div className="meetings-timeline">
-          <div className="section-label">Today's Schedule</div>
-          <DayTimeline meetings={todayMeetings} />
-        </div>
+          {!showWeekView && (
+            <div className="meetings-timeline">
+              <div className="section-label">Today's Schedule</div>
+              <DayTimeline meetings={todayMeetings} />
+            </div>
+          )}
+        </>
       )}
 
-      <main className="sections">
-        <div className="section">
-          <div className="section-header">
-            <div className="section-label">Projects & Tasks</div>
-            <div className="section-meta"><span className="meta-count">{filteredTasks.length}</span></div>
-          </div>
-          <div className="task-filter-tabs">
-            <button
-              className={`filter-tab ${taskFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setTaskFilter('all')}
-            >
-              All
-              <span className="filter-count">{orderedTasks.length}</span>
-            </button>
-            <button
-              className={`filter-tab ${taskFilter === 'ready' ? 'active' : ''}`}
-              onClick={() => setTaskFilter('ready')}
-            >
-              Ready
-              <span className="filter-count">{readyTasks.length}</span>
-            </button>
-            <button
-              className={`filter-tab ${taskFilter === 'priority' ? 'active' : ''}`}
-              onClick={() => setTaskFilter('priority')}
-            >
-              Priority
-              <span className="filter-count">{priorityTasks.length}</span>
-            </button>
-            <button
-              className={`filter-tab ${taskFilter === 'complete' ? 'active' : ''}`}
-              onClick={() => setTaskFilter('complete')}
-            >
-              Sent
-              <span className="filter-count">{completedTasks.length}</span>
-            </button>
-            <button
-              className={`filter-tab ${taskFilter === 'deleted' ? 'active' : ''}`}
-              onClick={() => setTaskFilter('deleted')}
-            >
-              Deleted
-              <span className="filter-count">{deletedTasks.length}</span>
+      {/* Tasks View */}
+      {mainView === 'tasks' && (
+        <main className="sections">
+          <div className="task-input-section">
+            <input
+              type="text"
+              className="task-input"
+              placeholder="Add task... try 'Call Sarah tomorrow at 3pm !'"
+              value={newTaskInput}
+              onChange={e => setNewTaskInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddTask()}
+            />
+            <button className="task-input-btn" onClick={handleAddTask}>
+              <Plus size={18} />
             </button>
           </div>
-          <div className="section-content">
-            {filteredTasks.length > 0 ? filteredTasks.map(task => (
-              <TaskItem
-                key={task.id}
-                item={task}
-                onComplete={handleComplete}
-                onDismiss={handleDismiss}
-                onTogglePriority={handleTogglePriority}
-                onStatusChange={handleStatusChange}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                isDragging={draggedId === task.id}
-              />
-            )) : <div className="empty-state">No tasks to show</div>}
-          </div>
-        </div>
 
-        <div className="section messages-section">
-          <div className="section-header">
-            <div className="section-label">Messages</div>
-            <div className="section-meta">
-              <span className="meta-count">{activeMessages.length}</span>
+          <ProgressBar completed={completedCount} total={totalItems} />
+
+          <div className="section">
+            <div className="section-header">
+              <div className="section-label">Projects & Tasks</div>
+              <div className="section-meta"><span className="meta-count">{filteredTasks.length}</span></div>
+            </div>
+            <div className="task-filter-tabs">
               <button
-                className={`group-toggle ${groupMessages ? 'active' : ''}`}
-                onClick={() => setGroupMessages(!groupMessages)}
-                title={groupMessages ? 'Show all messages' : 'Group by source'}
+                className={`filter-tab ${taskFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setTaskFilter('all')}
               >
-                {groupMessages ? 'Grouped' : 'All'}
+                All
+                <span className="filter-count">{orderedTasks.length}</span>
+              </button>
+              <button
+                className={`filter-tab ${taskFilter === 'ready' ? 'active' : ''}`}
+                onClick={() => setTaskFilter('ready')}
+              >
+                Ready
+                <span className="filter-count">{readyTasks.length}</span>
+              </button>
+              <button
+                className={`filter-tab ${taskFilter === 'priority' ? 'active' : ''}`}
+                onClick={() => setTaskFilter('priority')}
+              >
+                Priority
+                <span className="filter-count">{priorityTasks.length}</span>
+              </button>
+              <button
+                className={`filter-tab ${taskFilter === 'complete' ? 'active' : ''}`}
+                onClick={() => setTaskFilter('complete')}
+              >
+                Sent
+                <span className="filter-count">{completedTasks.length}</span>
+              </button>
+              <button
+                className={`filter-tab ${taskFilter === 'deleted' ? 'active' : ''}`}
+                onClick={() => setTaskFilter('deleted')}
+              >
+                Deleted
+                <span className="filter-count">{deletedTasks.length}</span>
               </button>
             </div>
+            <div className="section-content">
+              {filteredTasks.length > 0 ? filteredTasks.map(task => (
+                <TaskItem
+                  key={task.id}
+                  item={task}
+                  onComplete={handleComplete}
+                  onDismiss={handleDismiss}
+                  onTogglePriority={handleTogglePriority}
+                  onStatusChange={handleStatusChange}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  isDragging={draggedId === task.id}
+                />
+              )) : <div className="empty-state">No tasks to show</div>}
+            </div>
           </div>
-          <div className="section-content">
-            {activeMessages.length > 0 ? (
-              groupMessages ? (
-                // Grouped view
-                <>
-                  {(() => {
-                    const gmailMessages = activeMessages.filter(m => m.type === 'email' || m.source === 'gmail')
-                    const outlookMessages = activeMessages.filter(m => m.type === 'outlook' || m.source === 'outlook')
-                    const slackMessages = activeMessages.filter(m => m.type === 'slack' || m.source === 'slack')
-                    return (
-                      <>
-                        {gmailMessages.length > 0 && (
-                          <MessageGroup
-                            type="gmail"
-                            messages={gmailMessages}
-                            onArchive={handleComplete}
-                            onDismiss={handleDismiss}
-                          />
-                        )}
-                        {outlookMessages.length > 0 && (
-                          <MessageGroup
-                            type="outlook"
-                            messages={outlookMessages}
-                            onArchive={handleComplete}
-                            onDismiss={handleDismiss}
-                          />
-                        )}
-                        {slackMessages.length > 0 && (
-                          <MessageGroup
-                            type="slack"
-                            messages={slackMessages}
-                            onArchive={handleComplete}
-                            onDismiss={handleDismiss}
-                          />
-                        )}
-                      </>
-                    )
-                  })()}
-                </>
-              ) : (
-                // Ungrouped view - show all messages
-                activeMessages.map(msg => (
-                  <MessageItem
-                    key={msg.id}
-                    message={msg}
-                    onArchive={handleComplete}
-                    onDismiss={handleDismiss}
-                  />
-                ))
-              )
-            ) : <div className="empty-state">No messages</div>}
+        </main>
+      )}
+
+      {/* Inbox View */}
+      {mainView === 'inbox' && (
+        <main className="sections">
+          <div className="section messages-section">
+            <div className="section-header">
+              <div className="section-label">Messages</div>
+              <div className="section-meta">
+                <span className="meta-count">{activeMessages.length}</span>
+                <button
+                  className={`group-toggle ${groupMessages ? 'active' : ''}`}
+                  onClick={() => setGroupMessages(!groupMessages)}
+                  title={groupMessages ? 'Show all messages' : 'Group by source'}
+                >
+                  {groupMessages ? 'Grouped' : 'All'}
+                </button>
+              </div>
+            </div>
+            <div className="section-content">
+              {activeMessages.length > 0 ? (
+                groupMessages ? (
+                  <>
+                    {(() => {
+                      const gmailMessages = activeMessages.filter(m => m.type === 'email' || m.source === 'gmail')
+                      const outlookMessages = activeMessages.filter(m => m.type === 'outlook' || m.source === 'outlook')
+                      const slackMessages = activeMessages.filter(m => m.type === 'slack' || m.source === 'slack')
+                      return (
+                        <>
+                          {gmailMessages.length > 0 && (
+                            <MessageGroup
+                              type="gmail"
+                              messages={gmailMessages}
+                              onArchive={handleComplete}
+                              onDismiss={handleDismiss}
+                            />
+                          )}
+                          {outlookMessages.length > 0 && (
+                            <MessageGroup
+                              type="outlook"
+                              messages={outlookMessages}
+                              onArchive={handleComplete}
+                              onDismiss={handleDismiss}
+                            />
+                          )}
+                          {slackMessages.length > 0 && (
+                            <MessageGroup
+                              type="slack"
+                              messages={slackMessages}
+                              onArchive={handleComplete}
+                              onDismiss={handleDismiss}
+                            />
+                          )}
+                        </>
+                      )
+                    })()}
+                  </>
+                ) : (
+                  activeMessages.map(msg => (
+                    <MessageItem
+                      key={msg.id}
+                      message={msg}
+                      onArchive={handleComplete}
+                      onDismiss={handleDismiss}
+                    />
+                  ))
+                )
+              ) : <div className="empty-state">No messages</div>}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      )}
 
       {/* Undo Toast */}
       {showUndoToast && (

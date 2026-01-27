@@ -208,9 +208,9 @@ body {
 /* Horizontal Date Picker Strip */
 .date-picker-strip {
   display: flex;
-  justify-content: space-between;
-  gap: 4px;
-  margin-bottom: 24px;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
   padding: 8px 0;
 }
 
@@ -218,15 +218,14 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   padding: 8px 12px;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s;
   min-width: 44px;
-  position: relative;
 }
 
 .date-picker-day .day-label {
@@ -241,21 +240,13 @@ body {
   color: var(--text-secondary);
 }
 
-.date-picker-day .today-label {
-  font-size: 8px;
-  color: var(--priority);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  position: absolute;
-  top: -2px;
-}
-
 .date-picker-day:hover {
   background: var(--bg-hover);
 }
 
 .date-picker-day.today .day-number {
-  color: var(--text-primary);
+  color: var(--priority);
+  font-weight: 600;
 }
 
 .date-picker-day.selected {
@@ -353,19 +344,26 @@ body {
   border-radius: 16px;
   padding: 24px;
   border: 1px solid var(--border);
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
 .summary-card .greeting {
   font-size: 22px;
   font-weight: 400;
   color: var(--text-primary);
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
   letter-spacing: -0.3px;
 }
 
 .greeting .name {
   font-family: 'Orpix', monospace;
+}
+
+.ai-summary {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 16px 0;
 }
 
 .summary {
