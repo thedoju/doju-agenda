@@ -1908,7 +1908,28 @@ function App() {
   )
   const completedTasks = tasksWithPriority.filter(t => completedIds.includes(t.id))
   const deletedTasks = tasksWithPriority.filter(t => dismissedIds.includes(t.id) || t.status === 'ignored')
-  const activeMessages = messages.filter(m => !completedIds.includes(m.id) && !dismissedIds.includes(m.id))
+  // Filter and sort messages - prioritize human emails over automated/marketing
+  const isLikelyHumanEmail = (msg: AgendaItem) => {
+    const automatedPatterns = [
+      'noreply', 'no-reply', 'donotreply', 'newsletter', 'notifications',
+      'marketing', 'updates@', 'info@', 'support@', 'hello@', 'team@',
+      'mailer-daemon', 'postmaster', 'automated', 'digest', 'alert@'
+    ]
+    const sender = (msg.subtitle || '').toLowerCase()
+    const title = (msg.title || '').toLowerCase()
+    // Check if sender matches automated patterns
+    const isAutomated = automatedPatterns.some(p => sender.includes(p) || title.includes(p))
+    return !isAutomated
+  }
+  const filteredMessages = messages.filter(m => !completedIds.includes(m.id) && !dismissedIds.includes(m.id))
+  const activeMessages = [...filteredMessages].sort((a, b) => {
+    // Human emails first, then automated
+    const aHuman = isLikelyHumanEmail(a)
+    const bHuman = isLikelyHumanEmail(b)
+    if (aHuman && !bHuman) return -1
+    if (!aHuman && bHuman) return 1
+    return 0
+  })
   const orderedTasks = [...activeTasks].sort((a, b) => taskOrder.indexOf(a.id) - taskOrder.indexOf(b.id))
   const priorityTasks = orderedTasks.filter(t => t.isPriority)
 
@@ -1928,8 +1949,9 @@ function App() {
     }
   }
   const filteredTasks = getFilteredTasks()
-  const totalItems = allTasks.length + messages.length
-  const completedCount = completedIds.length + Object.values(taskStatuses).filter(s => s === 'complete').length
+  // Progress bar only counts tasks, not messages
+  const totalItems = allTasks.length
+  const completedCount = completedIds.filter(id => allTasks.some(t => t.id === id)).length + Object.values(taskStatuses).filter(s => s === 'complete').length
 
   useEffect(() => { const timer = setInterval(() => setCurrentTime(new Date()), 60000); return () => clearInterval(timer) }, [])
   useEffect(() => { document.body.classList.toggle('light-mode', !darkMode) }, [darkMode])
