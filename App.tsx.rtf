@@ -1,0 +1,167 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 import \{ useState, useEffect \} from 'react'\
+import \{ format, isToday, addDays, isSameDay, startOfWeek \} from 'date-fns'\
+import \{ Calendar, ChevronDown, RefreshCw, Cloud, Sun, CloudRain, ExternalLink, Clock, Sparkles, MapPin, Moon, ChevronLeft, ChevronRight, Flame, Check, X, Plus, Trash2 \} from 'lucide-react'\
+import './App.css'\
+\
+interface AgendaItem \{ id: string; type: 'task' | 'calendar' | 'email' | 'slack'; title: string; subtitle: string; description?: string; time?: string; priority?: 'urgent' | 'today' | 'normal'; aiSummary?: string; link?: string \}\
+interface DayEvents \{ date: Date; events: AgendaItem[] \}\
+interface WeatherData \{ temp: number; condition: string; location: string; time: string \}\
+\
+const getGreeting = (hour: number, name: string) => hour < 12 ? `Good morning, $\{name\}` : hour < 17 ? `Good afternoon, $\{name\}` : `Good evening, $\{name\}`\
+\
+const generateDemoData = () => \{\
+  const today = new Date(), tomorrow = addDays(today, 1)\
+  const tasks: AgendaItem[] = [\
+    \{ id: 't1', type: 'task', title: 'Orecast Brand Delivery', subtitle: 'Ready to send to client', priority: 'urgent', aiSummary: 'Final assets approved. Client expecting delivery by EOD.', link: '#' \},\
+    \{ id: 't2', type: 'task', title: 'SCHNELL ENX Website', subtitle: 'Review needed before handoff', priority: 'today', aiSummary: 'Dev team finished implementation. Needs design QA.', link: '#' \},\
+    \{ id: 't3', type: 'task', title: 'Magnetic Brand Guidelines', subtitle: 'Due Wednesday', priority: 'normal', link: '#' \},\
+    \{ id: 't4', type: 'task', title: 'Late Saints Packaging', subtitle: 'Due Friday', priority: 'normal', link: '#' \},\
+    \{ id: 't5', type: 'task', title: 'Behavoya App Screens', subtitle: 'In progress', priority: 'normal', link: '#' \}\
+  ]\
+  const todayMeetings: AgendaItem[] = [\
+    \{ id: 'c1', type: 'calendar', title: 'Design Review - Behavoya', subtitle: 'With Sarah & Mike', time: '10:00' \},\
+    \{ id: 'c2', type: 'calendar', title: 'Client Call - Magnetic', subtitle: 'Brand presentation', time: '14:00' \},\
+    \{ id: 'c3', type: 'calendar', title: 'Team Standup', subtitle: 'Weekly sync', time: '16:30' \}\
+  ]\
+  const tomorrowMeetings: AgendaItem[] = [\
+    \{ id: 'c4', type: 'calendar', title: 'Orecast Handoff Call', subtitle: 'Final delivery meeting', time: '09:00' \},\
+    \{ id: 'c5', type: 'calendar', title: 'New Client Intro - Apex', subtitle: 'Discovery session', time: '11:00' \},\
+    \{ id: 'c6', type: 'calendar', title: 'Design System Workshop', subtitle: 'Internal training', time: '14:00' \},\
+    \{ id: 'c7', type: 'calendar', title: '1:1 with James', subtitle: 'Monthly catch-up', time: '16:00' \}\
+  ]\
+  const weekEvents: DayEvents[] = [\
+    \{ date: today, events: todayMeetings \},\
+    \{ date: tomorrow, events: tomorrowMeetings \},\
+    \{ date: addDays(today, 2), events: [\{ id: 'c8', type: 'calendar', title: 'Portfolio Review', subtitle: 'Team feedback', time: '10:00' \}, \{ id: 'c9', type: 'calendar', title: 'Schnell Presentation', subtitle: 'Client pitch', time: '15:00' \}] \},\
+    \{ date: addDays(today, 3), events: [\{ id: 'c10', type: 'calendar', title: 'Creative Workshop', subtitle: 'Brainstorming', time: '13:00' \}] \},\
+    \{ date: addDays(today, 4), events: [\{ id: 'c11', type: 'calendar', title: 'Week Retrospective', subtitle: 'Team review', time: '16:00' \}] \},\
+    \{ date: addDays(today, 5), events: [] \},\
+    \{ date: addDays(today, 6), events: [] \}\
+  ]\
+  const messages: AgendaItem[] = [\
+    \{ id: 'm1', type: 'email', title: 'Re: Invoice #1042', subtitle: 'From accounts@schnellenx.com', description: 'Payment details needed', priority: 'today' \},\
+    \{ id: 'm2', type: 'slack', title: 'Sarah in #design', subtitle: 'Can we push Behavoya to Friday?', priority: 'normal' \},\
+    \{ id: 'm3', type: 'email', title: 'New Project Inquiry', subtitle: 'From hello@apexstudios.com', description: 'Interested in brand work', priority: 'normal' \}\
+  ]\
+  return \{ tasks, todayMeetings, weekEvents, messages \}\
+\}\
+\
+const WeatherIcon = (\{ condition \}: \{ condition: string \}) => condition.toLowerCase().includes('rain') ? <CloudRain size=\{18\} /> : condition.toLowerCase().includes('cloud') ? <Cloud size=\{18\} /> : <Sun size=\{18\} />\
+\
+interface Note \{ id: string; text: string \}\
+\
+const NotesSection = () => \{\
+  const [notes, setNotes] = useState<Note[]>(() => \{ const saved = localStorage.getItem('doju-notes'); return saved ? JSON.parse(saved) : [\{ id: '1', text: 'Follow up with Magnetic about color palette' \}, \{ id: '2', text: 'Book flights for design conference' \}] \})\
+  const [newNote, setNewNote] = useState('')\
+  const saveNotes = (updatedNotes: Note[]) => \{ setNotes(updatedNotes); localStorage.setItem('doju-notes', JSON.stringify(updatedNotes)) \}\
+  const addNote = () => \{ if (!newNote.trim()) return; saveNotes([\{ id: Date.now().toString(), text: newNote.trim() \}, ...notes]); setNewNote('') \}\
+  const deleteNote = (id: string) => saveNotes(notes.filter(n => n.id !== id))\
+  return (\
+    <div className="notes-section">\
+      <div className="section-label">Quick Notes</div>\
+      <div className="add-note-form">\
+        <input type="text" className="add-note-input" placeholder="Add a note..." value=\{newNote\} onChange=\{e => setNewNote(e.target.value)\} onKeyDown=\{e => e.key === 'Enter' && addNote()\} />\
+        <button className="add-note-btn" onClick=\{addNote\}><Plus size=\{16\} /></button>\
+      </div>\
+      \{notes.length > 0 && <div className="notes-list">\{notes.map(note => <div key=\{note.id\} className="note-item"><span className="note-text">\{note.text\}</span><button className="note-delete" onClick=\{() => deleteNote(note.id)\}><Trash2 size=\{12\} /></button></div>)\}</div>\}\
+    </div>\
+  )\
+\}\
+\
+const TaskItem = (\{ item, onComplete, onDismiss \}: \{ item: AgendaItem; onComplete: (id: string) => void; onDismiss: (id: string) => void \}) => \{\
+  const [expanded, setExpanded] = useState(false)\
+  return (\
+    <div className=\{`task-item $\{item.priority || ''\}`\}>\
+      <div className="task-main" onClick=\{() => setExpanded(!expanded)\}>\
+        <div className="task-content"><div className="task-title">\{item.title\}</div><div className="task-subtitle">\{item.subtitle\}</div></div>\
+        \{item.time && <span className="task-time">\{item.time\}</span>\}\
+        <div className="task-actions">\
+          <button className="action-btn complete" onClick=\{(e) => \{ e.stopPropagation(); onComplete(item.id) \}\}><Check size=\{12\} /></button>\
+          <button className="action-btn dismiss" onClick=\{(e) => \{ e.stopPropagation(); onDismiss(item.id) \}\}><X size=\{12\} /></button>\
+        </div>\
+        <ChevronDown className=\{`task-chevron $\{expanded ? 'rotated' : ''\}`\} size=\{14\} />\
+      </div>\
+      \{expanded && <div className="task-expanded">\{item.aiSummary && <div className="ai-insight"><Sparkles size=\{12\} /><span>\{item.aiSummary\}</span></div>\}\{item.link && <a href=\{item.link\} className="task-link" target="_blank" rel="noopener noreferrer">Open <ExternalLink size=\{10\} /></a>\}</div>\}\
+    </div>\
+  )\
+\}\
+\
+const WeekView = (\{ weekEvents, selectedDay, onSelectDay \}: \{ weekEvents: DayEvents[]; selectedDay: Date | null; onSelectDay: (day: Date) => void \}) => \{\
+  const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), \{ weekStartsOn: 1 \}))\
+  const days = Array.from(\{ length: 7 \}, (_, i) => addDays(weekStart, i))\
+  const getEventsForDay = (day: Date) => weekEvents.find(d => isSameDay(d.date, day))?.events || []\
+  const selectedDayEvents = selectedDay ? getEventsForDay(selectedDay) : []\
+  return (\
+    <div className="week-view">\
+      <div className="week-header">\
+        <button className="week-nav" onClick=\{() => setWeekStart(addDays(weekStart, -7))\}><ChevronLeft size=\{14\} /></button>\
+        <span className="week-title">\{format(weekStart, 'MMM d')\} - \{format(addDays(weekStart, 6), 'MMM d, yyyy')\}</span>\
+        <button className="week-nav" onClick=\{() => setWeekStart(addDays(weekStart, 7))\}><ChevronRight size=\{14\} /></button>\
+      </div>\
+      <div className="week-days">\{days.map((day) => \{ const dayEvents = getEventsForDay(day); return <div key=\{day.toISOString()\} className=\{`week-day $\{isToday(day) ? 'today' : ''\} $\{selectedDay && isSameDay(day, selectedDay) && !isToday(day) ? 'selected' : ''\}`\} onClick=\{() => onSelectDay(day)\}><span className="day-name">\{format(day, 'EEE')\}</span><span className="day-number">\{format(day, 'd')\}</span>\{dayEvents.length > 0 && <div className="day-dots">\{dayEvents.slice(0, 3).map((_, i) => <div key=\{i\} className="day-dot" />)\}</div>\}</div> \})\}</div>\
+      \{selectedDay && <div className="day-events-panel"><div className="day-events-header">\{format(selectedDay, 'EEEE, MMMM d')\}</div>\{selectedDayEvents.length > 0 ? selectedDayEvents.map(event => <div key=\{event.id\} className="day-event-item"><span className="event-time">\{event.time\}</span><div className="event-details"><span className="event-title">\{event.title\}</span><span className="event-subtitle">\{event.subtitle\}</span></div></div>) : <div className="no-events">No events scheduled</div>\}</div>\}\
+    </div>\
+  )\
+\}\
+\
+function App() \{\
+  const [currentTime, setCurrentTime] = useState(new Date())\
+  const [darkMode, setDarkMode] = useState(true)\
+  const [focusMode, setFocusMode] = useState(false)\
+  const [showWeekView, setShowWeekView] = useState(false)\
+  const [selectedDay, setSelectedDay] = useState<Date | null>(new Date())\
+  const [refreshing, setRefreshing] = useState(false)\
+  const [completedIds, setCompletedIds] = useState<string[]>([])\
+  const [dismissedIds, setDismissedIds] = useState<string[]>([])\
+  const [weather] = useState<WeatherData>(\{ temp: 22, condition: 'Sunny', location: 'Cape Town', time: format(new Date(), 'h:mm a') \})\
+  const \{ tasks, todayMeetings, weekEvents, messages \} = generateDemoData()\
+  const activeTasks = tasks.filter(t => !completedIds.includes(t.id) && !dismissedIds.includes(t.id))\
+  const activeMessages = messages.filter(m => !completedIds.includes(m.id) && !dismissedIds.includes(m.id))\
+  const displayTasks = focusMode ? activeTasks.filter(t => t.priority === 'urgent' || t.priority === 'today') : activeTasks\
+  const displayMessages = focusMode ? activeMessages.filter(m => m.priority === 'urgent' || m.priority === 'today') : activeMessages\
+  useEffect(() => \{ const timer = setInterval(() => setCurrentTime(new Date()), 60000); return () => clearInterval(timer) \}, [])\
+  useEffect(() => \{ document.body.classList.toggle('light-mode', !darkMode) \}, [darkMode])\
+  const urgentCount = activeTasks.filter(t => t.priority === 'urgent').length\
+  const todayCount = activeTasks.filter(t => t.priority === 'today').length\
+  const generateSummary = () => \{ const parts = []; if (urgentCount > 0) parts.push(`$\{urgentCount\} urgent`); if (todayCount > 0) parts.push(`$\{todayCount\} due today`); if (todayMeetings.length > 0) parts.push(`$\{todayMeetings.length\} meetings`); if (activeMessages.length > 0) parts.push(`$\{activeMessages.length\} messages`); return parts.length === 0 ? "You're all caught up. Take a moment to breathe." : `You have $\{parts.join(', ')\} to handle.` \}\
+\
+  return (\
+    <div className="app">\
+      <header className="header">\
+        <div className="header-top">\
+          <div className="date-display"><span className="date-dot" /><span className="date-text">\{format(currentTime, 'EEEE, MMMM d')\}</span></div>\
+          <div className="header-actions">\
+            <button className=\{`icon-btn flame-btn $\{focusMode ? 'active' : ''\}`\} onClick=\{() => setFocusMode(!focusMode)\} title="Focus mode"><Flame size=\{16\} /></button>\
+            <button className="icon-btn" onClick=\{() => setDarkMode(!darkMode)\}>\{darkMode ? <Sun size=\{16\} /> : <Moon size=\{16\} />\}</button>\
+            <button className=\{`icon-btn $\{refreshing ? 'spinning' : ''\}`\} onClick=\{() => \{ setRefreshing(true); setTimeout(() => setRefreshing(false), 1000) \}\}><RefreshCw size=\{16\} /></button>\
+          </div>\
+        </div>\
+        <h1 className="greeting">\{getGreeting(currentTime.getHours(), 'Oliver')\}</h1>\
+        <div className="weather-bar"><WeatherIcon condition=\{weather.condition\} /><span className="weather-temp">\{weather.temp\}\'b0C</span><span className="weather-condition">\{weather.condition\}</span><span className="weather-divider">\'b7</span><MapPin size=\{12\} /><span className="weather-location">\{weather.location\}</span><span className="weather-divider">\'b7</span><Clock size=\{12\} /><span className="weather-time">\{weather.time\}</span></div>\
+        <p className="summary">\{generateSummary()\}</p>\
+        \{focusMode && <div className="focus-banner"><Flame size=\{12\} /><span>Showing priority items only</span></div>\}\
+      </header>\
+      <div className="view-toggle"><button className=\{`toggle-btn $\{!showWeekView ? 'active' : ''\}`\} onClick=\{() => setShowWeekView(false)\}>Today</button><button className=\{`toggle-btn $\{showWeekView ? 'active' : ''\}`\} onClick=\{() => setShowWeekView(true)\}>Week</button></div>\
+      \{showWeekView && <WeekView weekEvents=\{weekEvents\} selectedDay=\{selectedDay\} onSelectDay=\{setSelectedDay\} />\}\
+      <NotesSection />\
+      <main className="sections">\
+        <div className="section">\
+          <div className="section-header"><div className="section-label">Projects & Tasks</div><div className="section-meta">\{urgentCount > 0 && <span className="meta-badge urgent">\{urgentCount\} urgent</span>\}\{todayCount > 0 && <span className="meta-badge today">\{todayCount\} today</span>\}</div></div>\
+          <div className="section-content">\{displayTasks.length > 0 ? displayTasks.map(task => <TaskItem key=\{task.id\} item=\{task\} onComplete=\{id => setCompletedIds(p => [...p, id])\} onDismiss=\{id => setDismissedIds(p => [...p, id])\} />) : <div className="empty-state">No tasks to show</div>\}</div>\
+        </div>\
+        \{!showWeekView && <div className="section"><div className="section-header"><div className="section-label">Today's Meetings</div><div className="section-meta"><span className="meta-count">\{todayMeetings.length\}</span></div></div><div className="section-content">\{todayMeetings.map(m => <div key=\{m.id\} className="meeting-item"><div className="meeting-time">\{m.time\}</div><div className="meeting-details"><div className="meeting-title">\{m.title\}</div><div className="meeting-subtitle">\{m.subtitle\}</div></div><Calendar size=\{14\} className="meeting-icon" /></div>)\}</div></div>\}\
+        <div className="section"><div className="section-header"><div className="section-label">Messages</div><div className="section-meta"><span className="meta-count">\{activeMessages.length\}</span></div></div><div className="section-content">\{displayMessages.length > 0 ? displayMessages.map(msg => <TaskItem key=\{msg.id\} item=\{msg\} onComplete=\{id => setCompletedIds(p => [...p, id])\} onDismiss=\{id => setDismissedIds(p => [...p, id])\} />) : <div className="empty-state">No messages</div>\}</div></div>\
+      </main>\
+      <footer className="footer"><span className="brand">Daily Doju</span><span className="footer-divider">\'b7</span><span className="footer-time">\{format(currentTime, 'h:mm a')\}</span></footer>\
+    </div>\
+  )\
+\}\
+\
+export default App}
